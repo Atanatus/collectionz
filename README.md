@@ -4,6 +4,7 @@ Juego web de cartas coleccionables ambientado en Orión. La web pública se sirv
 
 - [Web pública](https://atanatus.github.io/collectionz/)
 - [Mapa de navegación y estado](docs/producto.md)
+- [Pruebas de navegación y funciones](docs/qa.md)
 - [Integración del catálogo y del duelo](docs/integracion.md)
 
 Para revisar la maqueta, abre `index.html` en el navegador. Las rutas usan el fragmento de la URL y funcionan bajo el prefijo de GitHub Pages. El nombre del repositorio se conserva para mantener la dirección pública.

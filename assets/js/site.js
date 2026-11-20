@@ -5,7 +5,7 @@ const main = document.querySelector('#contenido');
 const albums = [
   { name: 'Álbum 1', season: 'Temporada 1', total: seasonOneCards.length, copies: {} }
 ];
-const sections = ['inicio', 'albumes', 'duelo', 'tienda', 'mercado', 'perfil'];
+const sections = ['inicio', 'albumes', 'duelo', 'tienda', 'mercado', 'perfil', 'ayuda'];
 const singlePage = matchMedia('(max-width: 600px)');
 let selectedAlbum = 0;
 let page = 0;
@@ -73,7 +73,7 @@ function renderAlbums(view) {
   const totalPages = Math.ceil(album.total / 6);
   const start = Math.floor(page / step) * step;
   const pages = Array.from({ length: Math.min(step, totalPages - start) }, (_, offset) => renderPage(album, start + offset)).join('');
-  return `<a href="#albumes">← Volver a Álbumes</a><h1>${album.name}</h1><div class="book">${pages}</div><div class="actions">
+  return `<a href="#albumes">← Volver a Álbumes</a><h1>${album.name}</h1><p><a href="#perfil/mis-sobres">Abrir un sobre de prueba →</a></p><div class="book">${pages}</div><div class="actions">
     <button data-page="${Math.max(0, start - step)}" ${start === 0 ? 'disabled' : ''}>← Anterior</button>
     <button data-page="${start + step}" ${start + step >= totalPages ? 'disabled' : ''}>Siguiente →</button>
   </div>`;
@@ -83,7 +83,7 @@ function render() {
   const [requested, view] = location.hash.slice(1).split('/');
   const section = sections.includes(requested) ? requested : 'inicio';
   for (const link of document.querySelectorAll('nav a')) {
-    if (link.hash === '#' + (section === 'duelo' ? 'inicio' : section)) link.setAttribute('aria-current', 'page');
+    if (link.hash === '#' + (['duelo', 'ayuda'].includes(section) ? 'inicio' : section)) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
 
@@ -91,23 +91,37 @@ function render() {
     case 'inicio':
       main.innerHTML = `<h1>Últimas novedades</h1>
         <article class="hero"><div><p class="hero-ja" lang="ja">放射能の怪異</p><h2>Mueca<br>Radiactivo</h2>
-        <p>Ilustración de desarrollo del universo de ACCRETION.</p><a class="cta" href="#albumes">Explorar álbumes →</a> <a class="cta" href="#duelo">Duelo →</a></div>
+        <p>Ilustración de desarrollo del universo de ACCRETION.</p><a class="cta" href="#albumes">Explorar álbumes →</a> <a class="cta" href="#duelo">Duelo →</a> <a class="cta" href="#ayuda">Guía de juego →</a></div>
         <img src="${muecaArt}" alt="Mueca Radiactivo, criatura de tinta morada con sonrisa luminosa" width="820" height="539"></article>
-        <article><h2>Bienvenido a ACCRETION</h2><p>Aquí publicaremos las novedades de temporadas, cartas y actualizaciones.</p></article>`;
+        <article><h2>Bienvenido a ACCRETION</h2><p>Aquí publicaremos las novedades de temporadas, cartas y actualizaciones.</p></article><p><a href="#perfil/mis-sobres">Abrir un sobre de prueba →</a></p>`;
       break;
     case 'albumes':
       main.innerHTML = renderAlbums(view);
       break;
     case 'duelo':
-      main.innerHTML = '<h1>Duelo</h1><p>El tablero se está probando en el prototipo local de ACCRETION. Esta sección se abrirá cuando el duelo se integre en la web.</p><a href="#inicio">Volver a Inicio</a>';
+      main.innerHTML = '<h1>Duelo</h1><p>El tablero se está probando en el prototipo local de ACCRETION. Esta sección se abrirá cuando el duelo se integre en la web.</p><p><a href="#ayuda/reglas">Consultar reglas del duelo →</a></p><a href="#inicio">Volver a Inicio</a>';
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
         [['Sobre individual', 'sobre', '1 sobre de 6 cartas'], ['Lote de sobres', 'lote', 'Cantidad por definir'], ['Caja', 'caja', 'Cantidad por definir']].map(([name, art, units]) =>
-          `<section class="product"><div class="art" data-format="${art}" aria-hidden="true"></div><h2>${name}</h2><p>Temporada 1 · ${units}</p><p>Precio por definir</p><button disabled>Comprar</button></section>`).join('') + '</div>';
+          `<section class="product"><div class="art" data-format="${art}" aria-hidden="true"></div><h2>${name}</h2><p>Temporada 1 · ${units}</p><p>Precio por definir</p><button disabled>Comprar</button></section>`).join('') + '</div><p>Las compras siguen en preparación. <a href="#perfil/mis-sobres">Puedes abrir un sobre de prueba →</a></p>';
       break;
     case 'mercado':
-      main.innerHTML = '<h1>Mercado</h1><p>Compraventa de cartas individuales entre jugadores. Próximamente.</p>';
+      main.innerHTML = '<h1>Mercado</h1><p>Compraventa de cartas individuales entre jugadores. Próximamente.</p><p><a href="#albumes/abierto">Consultar el catálogo de cartas →</a></p>';
+      break;
+    case 'ayuda':
+      main.innerHTML = view === 'reglas'
+        ? `<a href="#ayuda">← Volver a la guía</a><h1>Reglas del duelo</h1>
+          <p>Resumen del prototipo en desarrollo.</p>
+          <h2>Preparación</h2><p>Cada jugador empieza con tres vidas y un mazo de doce cartas. En mesa hay un puesto de Activa y otro de Apoyo.</p>
+          <h2>Turno</h2><p>El orden de juego pasa por robo, reposición, colocación, energía, acciones y fin de turno. El puesto de la carta determina cómo puede jugarse.</p>
+          <h2>Fin del duelo</h2><p>Pierdes al quedarte sin vidas. Si ambos jugadores pierden su última vida en la misma resolución, hay empate. La tercera aparición del mismo estado de inicio de turno también produce empate antes del robo.</p>
+          <p><a href="#duelo">← Volver a Duelo</a></p>`
+        : `<a href="#inicio">← Volver a Inicio</a><h1>Guía de juego</h1>
+          <h2>Coleccionar</h2><p>Abre sobres de prueba, consulta las cartas de la temporada y revisa cuántas fichas distintas has obtenido.</p>
+          <ul><li><a href="#perfil/mis-sobres">Abrir sobres de prueba</a></li><li><a href="#albumes/abierto">Consultar el álbum</a></li></ul>
+          <h2>Jugar</h2><p>Consulta las reglas básicas mientras se integra el tablero.</p>
+          <p><a href="#ayuda/reglas">Leer las reglas del duelo →</a></p>`;
       break;
     case 'perfil':
       if (view === 'mis-sobres') renderTrialPacks();
@@ -177,6 +191,14 @@ main.addEventListener('submit', async event => {
 addEventListener('storage', event => {
   if (event.key === trialInventoryKey && location.hash.startsWith('#albumes')) render();
 });
-addEventListener('hashchange', render);
+addEventListener('hashchange', () => {
+  render();
+  const heading = main.querySelector('h1');
+  if (heading) {
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }
+  window.scrollTo(0, 0);
+});
 singlePage.addEventListener('change', render);
 render();
