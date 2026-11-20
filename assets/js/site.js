@@ -3,7 +3,7 @@
 const muecaArt = 'assets/img/mueca-radiactivo.webp';
 const main = document.querySelector('#contenido');
 const albums = [
-  { name: 'Álbum 1', season: 'Temporada 1', total: 27, copies: {} }
+  { name: 'Álbum 1', season: 'Temporada 1', total: seasonOneCards.length, copies: {} }
 ];
 const sections = ['inicio', 'albumes', 'duelo', 'tienda', 'mercado', 'perfil'];
 const singlePage = matchMedia('(max-width: 600px)');
@@ -12,13 +12,12 @@ let page = 0;
 
 function renderPage(album, index) {
   const start = index * 6;
-  const length = Math.min(6, album.total - start);
-  const cards = Array.from({ length }, (_, offset) => {
-    const number = start + offset + 1;
-    const copies = album.copies[number] || 0;
-    return copies
-      ? `<div class="card owned">${album === albums[0] && number === 1 ? `<img src="${muecaArt}" alt="Mueca Radiactivo">` : `Carta ${number}`}${copies > 1 ? `<small>×${copies}</small>` : ''}</div>`
-      : `<div class="card" aria-label="Carta ${number} pendiente">#${number}</div>`;
+  const cards = seasonOneCards.slice(start, start + 6).map(card => {
+    const copies = album.copies[card.id] || 0;
+    const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    return `<button type="button" class="card${copies ? ' owned' : ''}" data-card="${card.id}">
+      <small>#${card.number}</small><span>${name}</span>${copies > 1 ? `<small>×${copies}</small>` : ''}
+    </button>`;
   }).join('');
   return `<section class="page" aria-label="Página ${index + 1}"><div class="cards">${cards}</div><p>Página ${index + 1}</p></section>`;
 }
@@ -83,7 +82,24 @@ function render() {
 main.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  if (button.id === 'open-album') {
+  if (button.dataset.card) {
+    const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
+    const dialog = document.querySelector('#detalle-carta');
+    const image = document.querySelector('#detalle-imagen');
+    const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    document.querySelector('#detalle-nombre').textContent = name;
+    document.querySelector('#detalle-datos').textContent = [card.role, `${card.hp} PV`, card.path].filter(Boolean).join(' · ');
+    image.hidden = true;
+    image.onload = () => { image.hidden = false; };
+    image.alt = name;
+    const source = `assets/cartas/temporada-1/${card.editionId}.png`;
+    if (image.getAttribute('src') === source && image.complete && image.naturalWidth) {
+      image.hidden = false;
+    } else {
+      image.src = source;
+    }
+    dialog.showModal();
+  } else if (button.id === 'open-album') {
     page = 0;
     location.hash = 'albumes/abierto';
   } else if (button.dataset.album !== undefined) {
