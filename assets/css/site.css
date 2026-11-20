@@ -81,3 +81,14 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 .trial-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr)); gap: .75rem; margin-block: 1rem; }
 .trial-card { padding: 0; }
 .trial-card img { display: block; width: 100%; aspect-ratio: 5 / 7; }
+
+/* Portada del album de Temporada 1 */
+.cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .25rem;
+  background: linear-gradient(0deg, #140c22eb, transparent 42%),
+    url("../img/portada-album-temporada-1.png") center / cover no-repeat #341171;
+}
