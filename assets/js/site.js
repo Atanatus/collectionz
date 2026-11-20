@@ -1,6 +1,8 @@
 'use strict';
 
 const muecaArt = 'assets/img/mueca-radiactivo.webp';
+const packArt = 'assets/img/sobre-temporada-1.png';
+const cardImagePath = card => `assets/cartas/temporada-1/${card.editionId}.png`;
 const main = document.querySelector('#contenido');
 const albums = [
   { name: 'Álbum 1', season: 'Temporada 1', total: seasonOneCards.length, copies: {} }
@@ -15,8 +17,14 @@ function renderPage(album, index) {
   const cards = seasonOneCards.slice(start, start + 6).map(card => {
     const copies = album.copies[card.id] || 0;
     const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
-    return `<button type="button" class="card${copies ? ' owned' : ''}" data-card="${card.id}">
-      <small>#${card.number}</small><span>${name}</span>${copies > 1 ? `<small>×${copies}</small>` : ''}
+    if (copies) {
+      return `<button type="button" class="card owned" data-card="${card.id}" aria-label="${name}, ${copies} copias">
+        <img src="${cardImagePath(card)}" alt="" width="1000" height="1400" loading="lazy">
+        ${copies > 1 ? `<small class="copy-count">×${copies}</small>` : ''}
+      </button>`;
+    }
+    return `<button type="button" class="card" data-card="${card.id}" aria-label="${name}, por conseguir">
+      <small>#${card.number}</small><span>${name}</span>
     </button>`;
   }).join('');
   return `<section class="page" aria-label="Página ${index + 1}"><div class="cards">${cards}</div><p>Página ${index + 1}</p></section>`;
@@ -39,7 +47,7 @@ function renderTrialPack(cards, ids) {
     button.className = 'trial-card';
 
     const image = document.createElement('img');
-    image.src = `assets/cartas/temporada-1/${card.editionId}.png`;
+    image.src = cardImagePath(card);
     image.alt = card.variant ? `${card.species} · ${card.variant}` : card.species;
     button.append(image);
     return button;
@@ -49,6 +57,7 @@ function renderTrialPack(cards, ids) {
 function renderTrialPacks() {
   const inventory = trialInventoryForDisplay();
   main.innerHTML = `<a href="#perfil">← Volver a Perfil</a><h1>Mis sobres</h1>
+    <img class="pack-art" src="${packArt}" alt="Sobre de ACCRETION, Temporada 1">
     <p>Prueba gratuita de Temporada 1. Las cartas se guardan en este navegador.</p>
     <form id="abrir-sobre-prueba">
       <label>Camino <select name="camino">${packPaths.map(path => `<option>${path}</option>`).join('')}</select></label>
@@ -175,7 +184,7 @@ function render() {
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
         [['Sobre individual', 'sobre', '1 sobre de 6 cartas'], ['Lote de sobres', 'lote', 'Cantidad por definir'], ['Caja', 'caja', 'Cantidad por definir']].map(([name, art, units]) =>
-          `<section class="product"><div class="art" data-format="${art}" aria-hidden="true"></div><h2>${name}</h2><p>Temporada 1 · ${units}</p><p>Precio por definir</p><button disabled>Comprar</button></section>`).join('') + '</div><p>Las compras siguen en preparación. <a href="#perfil/mis-sobres">Puedes abrir un sobre de prueba →</a></p>';
+          `<section class="product">${art === 'sobre' ? `<img class="pack-art" src="${packArt}" alt="">` : `<div class="art" data-format="${art}" aria-hidden="true"></div>`}<h2>${name}</h2><p>Temporada 1 · ${units}</p><p>Precio por definir</p><button disabled>Comprar</button></section>`).join('') + '</div><p>Las compras siguen en preparación. <a href="#perfil/mis-sobres">Puedes abrir un sobre de prueba →</a></p>';
       break;
     case 'mercado':
       main.innerHTML = '<h1>Mercado</h1><p>Compraventa de cartas individuales entre jugadores. Próximamente.</p><p><a href="#albumes/abierto">Consultar el catálogo de cartas →</a></p>';
@@ -216,7 +225,7 @@ main.addEventListener('click', event => {
     image.hidden = true;
     image.onload = () => { image.hidden = false; };
     image.alt = name;
-    const source = `assets/cartas/temporada-1/${card.editionId}.png`;
+    const source = cardImagePath(card);
     if (image.getAttribute('src') === source && image.complete && image.naturalWidth) {
       image.hidden = false;
     } else {
