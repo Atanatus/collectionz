@@ -140,6 +140,58 @@ function updateDeckStatus(form) {
   form.querySelector('#mazo-estado').textContent = `${check.total}/${trialDeckSize} cartas · ${check.errors.join(' ') || 'Mazo válido.'}`;
 }
 
+function renderTrialDuel(view) {
+  const heading = '<h1>Duelo de prueba</h1>';
+  const rules = '<p><a href="#ayuda/reglas">Consultar reglas del duelo →</a></p>';
+  if (view !== 'preparar') {
+    return heading + '<p><a class="cta" href="#duelo/preparar">Elegir mazo →</a></p>' + rules;
+  }
+
+  let selection;
+  let check;
+  try {
+    selection = readTrialDeck();
+    check = validateTrialDeck(selection, readTrialInventory().copies);
+  } catch {
+    return heading + '<p>No se pudo leer el mazo o el inventario de este navegador.</p>' + rules;
+  }
+
+  const edit = '<p><a href="#perfil/mazo">Ir a Mi mazo de prueba →</a></p>';
+  if (check.errors.length) return heading + '<p>Guarda un mazo válido para preparar la partida.</p>' + edit + rules;
+
+  return heading + `<label for="mazo-duelo">Mazo</label>
+    <select id="mazo-duelo"><option>Mi mazo de prueba · ${check.total} cartas</option></select>
+    <p>El rival de prueba usa la misma composición, barajada por separado.</p>
+    <button id="preparar-duelo" type="button">Preparar partida</button>
+    <div id="apertura-duelo" aria-live="polite"></div>` + edit + rules;
+}
+
+function showTrialOpening() {
+  const result = main.querySelector('#apertura-duelo');
+  try {
+    const selection = readTrialDeck();
+    const check = validateTrialDeck(selection, readTrialInventory().copies);
+    if (check.errors.length) {
+      result.textContent = check.errors.join(' ');
+      return;
+    }
+    const opening = prepareTrialOpening(selection);
+    const sides = [['Tú', opening.player], ['Rival', opening.rival]].map(([label, side]) => {
+      const card = seasonCardsById.get(side.activeId);
+      const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+      return `<section><h3>${label}</h3><p>3 vidas · Mazo ${side.deck.length} · Mano 0</p>
+        <p>Activa: <button type="button" data-card="${card.id}">${name}</button></p>
+        <p>Apoyo vacío · Eliminadas 0</p></section>`;
+    }).join('');
+    result.innerHTML = `<h2>Apertura preparada</h2>
+      <p>${opening.starter === 'player' ? 'Empiezas tú.' : 'Empieza el rival.'}
+        ${opening.player.draws === opening.rival.draws ? 'Desempate al azar.' : ''}</p>
+      <div class="products">${sides}</div>`;
+  } catch {
+    result.textContent = 'No se pudo preparar la apertura.';
+  }
+}
+
 function renderAlbums(view) {
   const album = { ...albums[selectedAlbum], copies: trialInventoryForDisplay()?.copies ?? {} };
   if (view !== 'abierto') {
@@ -179,7 +231,7 @@ function render() {
       main.innerHTML = renderAlbums(view);
       break;
     case 'duelo':
-      main.innerHTML = '<h1>Duelo</h1><p>El tablero se está probando en el prototipo local de ACCRETION. Esta sección se abrirá cuando el duelo se integre en la web.</p><p><a href="#ayuda/reglas">Consultar reglas del duelo →</a></p><a href="#inicio">Volver a Inicio</a>';
+      main.innerHTML = renderTrialDuel(view);
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
@@ -215,7 +267,9 @@ function render() {
 main.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  if (button.dataset.card) {
+  if (button.id === 'preparar-duelo') {
+    showTrialOpening();
+  } else if (button.dataset.card) {
     const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
     const dialog = document.querySelector('#detalle-carta');
     const image = document.querySelector('#detalle-imagen');
