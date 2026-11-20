@@ -26,3 +26,14 @@ function prepareTrialOpening(selection, random = Math.random) {
     : (player.draws < rival.draws ? 'player' : 'rival');
   return { player, rival, starter };
 }
+
+function startTrialDuel(opening) {
+  const duel = {
+    turn: opening.starter,
+    player: { activeId: opening.player.activeId, deck: [...opening.player.deck], hand: [] },
+    rival: { activeId: opening.rival.activeId, deck: [...opening.rival.deck], hand: [] }
+  };
+  const side = duel[duel.turn];
+  if (side.deck.length) side.hand.push(side.deck.shift());
+  return duel;
+}

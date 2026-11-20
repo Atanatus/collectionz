@@ -140,9 +140,32 @@ function updateDeckStatus(form) {
   form.querySelector('#mazo-estado').textContent = `${check.total}/${trialDeckSize} cartas · ${check.errors.join(' ') || 'Mazo válido.'}`;
 }
 
+let preparedTrialOpening = null;
+let trialDuel = null;
+
+function renderTrialDuelCard(id) {
+  const card = seasonCardsById.get(id);
+  const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+  return `<button type="button" data-card="${card.id}">${name}</button>`;
+}
+
+function renderStartedTrialDuel(duel) {
+  const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) =>
+    `<section><h2>${label}</h2><p>3 vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
+      <p>Activa: ${renderTrialDuelCard(side.activeId)}</p>
+      <p>Apoyo vacío · Eliminadas 0</p></section>`).join('');
+  return `<h1 tabindex="-1">Duelo en curso</h1>
+    <p>Turno 1 · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
+    <div class="products">${sides}</div>
+    <section><h2>Tu mano</h2><p>${duel.player.hand.map(renderTrialDuelCard).join(' ') || 'Vacía'}</p></section>
+    <p>Robo inicial resuelto. La fase de reposición y las acciones están pendientes de integración.</p>
+    <p><a href="#duelo/preparar">Preparar otra partida →</a></p>`;
+}
+
 function renderTrialDuel(view) {
   const heading = '<h1>Duelo de prueba</h1>';
   const rules = '<p><a href="#ayuda/reglas">Consultar reglas del duelo →</a></p>';
+  if (view === 'partida' && trialDuel) return renderStartedTrialDuel(trialDuel);
   if (view !== 'preparar') {
     return heading + '<p><a class="cta" href="#duelo/preparar">Elegir mazo →</a></p>' + rules;
   }
@@ -168,6 +191,7 @@ function renderTrialDuel(view) {
 
 function showTrialOpening() {
   const result = main.querySelector('#apertura-duelo');
+  preparedTrialOpening = null;
   try {
     const selection = readTrialDeck();
     const check = validateTrialDeck(selection, readTrialInventory().copies);
@@ -176,6 +200,7 @@ function showTrialOpening() {
       return;
     }
     const opening = prepareTrialOpening(selection);
+    preparedTrialOpening = opening;
     const sides = [['Tú', opening.player], ['Rival', opening.rival]].map(([label, side]) => {
       const card = seasonCardsById.get(side.activeId);
       const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
@@ -186,7 +211,8 @@ function showTrialOpening() {
     result.innerHTML = `<h2>Apertura preparada</h2>
       <p>${opening.starter === 'player' ? 'Empiezas tú.' : 'Empieza el rival.'}
         ${opening.player.draws === opening.rival.draws ? 'Desempate al azar.' : ''}</p>
-      <div class="products">${sides}</div>`;
+      <div class="products">${sides}</div>
+      <p><button id="comenzar-duelo" type="button">Comenzar duelo</button></p>`;
   } catch {
     result.textContent = 'No se pudo preparar la apertura.';
   }
@@ -232,6 +258,7 @@ function render() {
       break;
     case 'duelo':
       main.innerHTML = renderTrialDuel(view);
+      if (view === 'partida' && trialDuel) main.querySelector('h1').focus();
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
@@ -269,6 +296,11 @@ main.addEventListener('click', event => {
   if (!button || button.disabled) return;
   if (button.id === 'preparar-duelo') {
     showTrialOpening();
+  } else if (button.id === 'comenzar-duelo' && preparedTrialOpening) {
+    trialDuel = startTrialDuel(preparedTrialOpening);
+    preparedTrialOpening = null;
+    button.disabled = true;
+    location.hash = 'duelo/partida';
   } else if (button.dataset.card) {
     const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
     const dialog = document.querySelector('#detalle-carta');
