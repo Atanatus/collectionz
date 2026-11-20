@@ -56,8 +56,32 @@ function renderTrialPacks() {
     </form>
     <p id="sobre-estado" role="status">${inventory ? '6 cartas distintas · 10 % de probabilidad de exclusiva.' : 'No se puede acceder al inventario de prueba de este navegador.'}</p>
     <div id="sobre-resultado" class="trial-cards" aria-label="Último sobre abierto"></div>
-    <a href="#albumes/abierto">Ver mi álbum →</a>`;
+    <a href="#albumes/abierto">Ver mi álbum →</a> · <a href="#perfil/inventario">Ver inventario →</a>`;
   renderTrialPack(main.querySelector('#sobre-resultado'), inventory?.lastPack ?? []);
+}
+
+function renderInventory() {
+  const inventory = trialInventoryForDisplay();
+  const links = '<p><a href="#perfil/mis-sobres">Abrir sobres de prueba →</a> · <a href="#albumes/abierto">Ver álbum →</a></p>';
+  const heading = '<a href="#perfil">← Volver a Perfil</a><h1>Inventario</h1>';
+  if (!inventory) {
+    main.innerHTML = heading + '<p>No se puede leer el inventario de este navegador.</p>' + links;
+    return;
+  }
+  const owned = seasonOneCards.filter(card => Object.hasOwn(inventory.copies, card.id));
+  if (owned.length === 0) {
+    main.innerHTML = heading + '<p>Tu inventario está vacío. Abre un sobre de prueba para conseguir tus primeras cartas.</p>' + links;
+    return;
+  }
+  const total = owned.reduce((sum, card) => sum + inventory.copies[card.id], 0);
+  const cards = owned.map(card => {
+    const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    return `<li><button type="button" data-card="${card.id}">
+      ${name} <small>· ${card.role} · ×${inventory.copies[card.id]}</small>
+    </button></li>`;
+  }).join('');
+  main.innerHTML = heading + `<p>${owned.length} fichas distintas · ${total} cartas en total</p>
+    <ul aria-label="Cartas obtenidas">${cards}</ul>` + links;
 }
 
 function renderAlbums(view) {
@@ -125,7 +149,8 @@ function render() {
       break;
     case 'perfil':
       if (view === 'mis-sobres') renderTrialPacks();
-      else main.innerHTML = '<h1>Perfil</h1><article><h2>Mis sobres</h2><p>Prueba la apertura de sobres de Temporada 1.</p><a href="#perfil/mis-sobres">Ver mis sobres</a></article>';
+      else if (view === 'inventario') renderInventory();
+      else main.innerHTML = '<h1>Perfil</h1><article><h2>Mis sobres</h2><p>Prueba la apertura de sobres de Temporada 1.</p><a href="#perfil/mis-sobres">Ver mis sobres</a></article><article><h2>Inventario</h2><p>Consulta las cartas obtenidas y cuántas copias tienes.</p><a href="#perfil/inventario">Ver inventario</a></article>';
       break;
   }
 }
@@ -189,7 +214,8 @@ main.addEventListener('submit', async event => {
   }
 });
 addEventListener('storage', event => {
-  if (event.key === trialInventoryKey && location.hash.startsWith('#albumes')) render();
+  if (event.key === trialInventoryKey &&
+      (location.hash.startsWith('#albumes') || location.hash === '#perfil/inventario')) render();
 });
 addEventListener('hashchange', () => {
   render();

@@ -9,10 +9,11 @@
 | Sobres | Abrir uno desde cada camino y recargar. | Seis cartas distintas por sobre. Una exclusiva, si sale, pertenece al camino elegido. Se conservan las copias y el último sobre. |
 | Almacenamiento | Bloquear el almacenamiento e intentar abrir. | El estado explica el problema. La aplicación evita presentar una apertura como guardada. |
 | Tienda y mercado | Recorrer ambos apartados. | Tienda explica el estado de las compras y enlaza con la prueba. Mercado enlaza al catálogo. |
+| Inventario | Perfil → Inventario, antes y después de abrir sobres. Abrir una ficha y recargar. | El estado vacío lleva a Sobres. Las cartas obtenidas muestran sus copias y abren su ficha. Los recuentos se conservan al recargar. |
 
 ## Pantallas pendientes
 
-- Inventario y gestión de mazos. Revisar estados vacío, selección, límite de copias y guardado.
+- Gestión de mazos. Revisar estados vacío, selección, límite de copias y guardado.
 - Inicio de duelo, turno, fin de partida y repetición. Conectar al motor y verificar la partida completa.
 - Compra de sobres, publicación de cartas y gestión de anuncios. Definir los flujos antes de habilitar transacciones.
 
