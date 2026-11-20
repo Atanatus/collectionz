@@ -72,3 +72,9 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 #detalle-carta { max-width: min(92vw, 28rem); max-height: 92vh; }
 #detalle-carta img:not([hidden]) { display: block; margin: 0 auto 1rem; max-width: 100%; max-height: 64vh; }
 #detalle-carta::backdrop { background: rgba(0, 0, 0, .76); }
+
+#abrir-sobre-prueba { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+#abrir-sobre-prueba select { font: inherit; max-width: 100%; }
+.trial-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr)); gap: .75rem; margin-block: 1rem; }
+.trial-card { padding: 0; }
+.trial-card img { display: block; width: 100%; aspect-ratio: 5 / 7; }

@@ -22,8 +22,46 @@ function renderPage(album, index) {
   return `<section class="page" aria-label="Página ${index + 1}"><div class="cards">${cards}</div><p>Página ${index + 1}</p></section>`;
 }
 
+function trialInventoryForDisplay() {
+  try {
+    return readTrialInventory();
+  } catch {
+    return null;
+  }
+}
+
+function renderTrialPack(cards, ids) {
+  cards.replaceChildren(...ids.map(id => {
+    const card = seasonCardsById.get(id);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.card = id;
+    button.className = 'trial-card';
+
+    const image = document.createElement('img');
+    image.src = `assets/cartas/temporada-1/${card.editionId}.png`;
+    image.alt = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    button.append(image);
+    return button;
+  }));
+}
+
+function renderTrialPacks() {
+  const inventory = trialInventoryForDisplay();
+  main.innerHTML = `<a href="#perfil">← Volver a Perfil</a><h1>Mis sobres</h1>
+    <p>Prueba gratuita de Temporada 1. Las cartas se guardan en este navegador.</p>
+    <form id="abrir-sobre-prueba">
+      <label>Camino <select name="camino">${packPaths.map(path => `<option>${path}</option>`).join('')}</select></label>
+      <button type="submit" ${inventory ? '' : 'disabled'}>Abrir sobre de prueba</button>
+    </form>
+    <p id="sobre-estado" role="status">${inventory ? '6 cartas distintas · 10 % de probabilidad de exclusiva.' : 'No se puede acceder al inventario de prueba de este navegador.'}</p>
+    <div id="sobre-resultado" class="trial-cards" aria-label="Último sobre abierto"></div>
+    <a href="#albumes/abierto">Ver mi álbum →</a>`;
+  renderTrialPack(main.querySelector('#sobre-resultado'), inventory?.lastPack ?? []);
+}
+
 function renderAlbums(view) {
-  const album = albums[selectedAlbum];
+  const album = { ...albums[selectedAlbum], copies: trialInventoryForDisplay()?.copies ?? {} };
   if (view !== 'abierto') {
     return `<h1>Álbumes</h1><div class="shelf"><div class="selector">
       <button data-album="-1" aria-label="Álbum anterior" ${selectedAlbum === 0 ? 'disabled' : ''}>←</button>
@@ -72,9 +110,8 @@ function render() {
       main.innerHTML = '<h1>Mercado</h1><p>Compraventa de cartas individuales entre jugadores. Próximamente.</p>';
       break;
     case 'perfil':
-      main.innerHTML = view === 'mis-sobres'
-        ? '<a href="#perfil">← Volver a Perfil</a><h1>Mis sobres</h1><p>No tienes sobres pendientes en esta maqueta.</p><a href="#tienda">Ir a la tienda</a>'
-        : '<h1>Perfil</h1><article><h2>Mis sobres</h2><p>Consulta aquí los sobres pendientes de abrir.</p><a href="#perfil/mis-sobres">Ver mis sobres</a></article>';
+      if (view === 'mis-sobres') renderTrialPacks();
+      else main.innerHTML = '<h1>Perfil</h1><article><h2>Mis sobres</h2><p>Prueba la apertura de sobres de Temporada 1.</p><a href="#perfil/mis-sobres">Ver mis sobres</a></article>';
       break;
   }
 }
@@ -115,6 +152,30 @@ main.addEventListener('click', event => {
     (sameDirection || controls[0])?.focus({ preventScroll: true });
     main.querySelector('.book').scrollIntoView({ block: 'nearest' });
   }
+});
+main.addEventListener('submit', async event => {
+  const form = event.target;
+  if (form.id !== 'abrir-sobre-prueba') return;
+  event.preventDefault();
+  const button = form.querySelector('button');
+  if (button.disabled) return;
+  button.disabled = true;
+  const status = main.querySelector('#sobre-estado');
+  const results = main.querySelector('#sobre-resultado');
+  try {
+    const inventory = await openTrialPack(form.elements.camino.value);
+    if (form.isConnected) {
+      renderTrialPack(results, inventory.lastPack);
+      status.textContent = 'Seis cartas añadidas a tu álbum.';
+    }
+  } catch {
+    if (form.isConnected) status.textContent = 'No se pudo guardar el sobre. Comprueba el almacenamiento del navegador.';
+  } finally {
+    button.disabled = false;
+  }
+});
+addEventListener('storage', event => {
+  if (event.key === trialInventoryKey && location.hash.startsWith('#albumes')) render();
 });
 addEventListener('hashchange', render);
 singlePage.addEventListener('change', render);
