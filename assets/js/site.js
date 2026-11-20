@@ -81,7 +81,54 @@ function renderInventory() {
     </button></li>`;
   }).join('');
   main.innerHTML = heading + `<p>${owned.length} fichas distintas · ${total} cartas en total</p>
-    <ul aria-label="Cartas obtenidas">${cards}</ul>` + links;
+    <p><a href="#perfil/mazo">Preparar mi mazo →</a></p><ul aria-label="Cartas obtenidas">${cards}</ul>` + links;
+}
+
+function renderTrialDeck() {
+  const heading = '<a href="#perfil/inventario">← Volver al inventario</a><h1>Mi mazo de prueba</h1>';
+  const inventory = trialInventoryForDisplay();
+  if (!inventory) {
+    main.innerHTML = heading + '<p>No se puede leer el inventario de este navegador.</p>';
+    return;
+  }
+  const owned = seasonOneCards.filter(card => Object.hasOwn(inventory.copies, card.id));
+  if (!owned.length) {
+    main.innerHTML = heading + '<p>Abre un sobre de prueba para conseguir cartas.</p><a href="#perfil/mis-sobres">Ir a Mis sobres →</a>';
+    return;
+  }
+  let saved;
+  try {
+    saved = readTrialDeck();
+  } catch {
+    main.innerHTML = heading + '<p>No se puede leer el mazo guardado en este navegador.</p>';
+    return;
+  }
+  const fields = owned.map(card => {
+    const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    const count = inventory.copies[card.id];
+    const max = Math.min(count, trialSpeciesLimit);
+    return `<li><label>${name} · ${card.role} · ${count} en inventario
+      <select name="${card.id}" data-copias="${count}">
+        ${Array.from({ length: max + 1 }, (_, value) =>
+          `<option value="${value}" ${Math.min(saved[card.id] ?? 0, max) === value ? 'selected' : ''}>${value}</option>`).join('')}
+      </select></label></li>`;
+  }).join('');
+  main.innerHTML = heading + `<p>12 cartas, máximo 2 por especie contando variantes y al menos 2 especies aptas para Activa.</p>
+    <form id="mazo-prueba"><ul>${fields}</ul>
+      <p id="mazo-estado" role="status"></p><button type="submit">Guardar mazo</button>
+    </form>`;
+  updateDeckStatus(main.querySelector('#mazo-prueba'));
+}
+
+function deckSelection(form) {
+  return Object.fromEntries([...form.querySelectorAll('select')].map(field => [field.name, Number(field.value)]));
+}
+
+function updateDeckStatus(form) {
+  const fields = [...form.querySelectorAll('select')];
+  const copies = Object.fromEntries(fields.map(field => [field.name, Number(field.dataset.copias)]));
+  const check = validateTrialDeck(deckSelection(form), copies);
+  form.querySelector('#mazo-estado').textContent = `${check.total}/${trialDeckSize} cartas · ${check.errors.join(' ') || 'Mazo válido.'}`;
 }
 
 function renderAlbums(view) {
@@ -150,6 +197,7 @@ function render() {
     case 'perfil':
       if (view === 'mis-sobres') renderTrialPacks();
       else if (view === 'inventario') renderInventory();
+      else if (view === 'mazo') renderTrialDeck();
       else main.innerHTML = '<h1>Perfil</h1><article><h2>Mis sobres</h2><p>Prueba la apertura de sobres de Temporada 1.</p><a href="#perfil/mis-sobres">Ver mis sobres</a></article><article><h2>Inventario</h2><p>Consulta las cartas obtenidas y cuántas copias tienes.</p><a href="#perfil/inventario">Ver inventario</a></article>';
       break;
   }
@@ -192,8 +240,24 @@ main.addEventListener('click', event => {
     main.querySelector('.book').scrollIntoView({ block: 'nearest' });
   }
 });
+main.addEventListener('change', event => {
+  const form = event.target.closest('#mazo-prueba');
+  if (form) updateDeckStatus(form);
+});
+
 main.addEventListener('submit', async event => {
   const form = event.target;
+  if (form.id === 'mazo-prueba') {
+    event.preventDefault();
+    const status = form.querySelector('#mazo-estado');
+    try {
+      const check = saveTrialDeck(deckSelection(form));
+      status.textContent = check.errors.join(' ') || 'Mazo guardado en este navegador.';
+    } catch {
+      status.textContent = 'No se pudo guardar el mazo en este navegador.';
+    }
+    return;
+  }
   if (form.id !== 'abrir-sobre-prueba') return;
   event.preventDefault();
   const button = form.querySelector('button');

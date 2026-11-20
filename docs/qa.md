@@ -10,10 +10,10 @@
 | Almacenamiento | Bloquear el almacenamiento e intentar abrir. | El estado explica el problema. La aplicación evita presentar una apertura como guardada. |
 | Tienda y mercado | Recorrer ambos apartados. | Tienda explica el estado de las compras y enlaza con la prueba. Mercado enlaza al catálogo. |
 | Inventario | Perfil → Inventario, antes y después de abrir sobres. Abrir una ficha y recargar. | El estado vacío lleva a Sobres. Las cartas obtenidas muestran sus copias y abren su ficha. Los recuentos se conservan al recargar. |
+| Mazo de prueba | Preparar un mazo desde Inventario. Probar 11 y 13 cartas, copias no poseídas, tres cartas de la misma especie y dos variantes de una misma especie como únicas Activas. Guardar un mazo válido y recargar. | Solo se guarda con 12 cartas, hasta 2 por especie y al menos 2 especies aptas para Activa. |
 
 ## Pantallas pendientes
 
-- Gestión de mazos. Revisar estados vacío, selección, límite de copias y guardado.
 - Inicio de duelo, turno, fin de partida y repetición. Conectar al motor y verificar la partida completa.
 - Compra de sobres, publicación de cartas y gestión de anuncios. Definir los flujos antes de habilitar transacciones.
 
