@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | Navegación | Abrir las cinco entradas principales. Usar Atrás y Adelante. | La vista y la entrada activa coinciden. El foco pasa al título de la vista al cambiar de ruta. |
 | Guía | Inicio → Guía → Reglas → Duelo. | Cada enlace llega a su destino. Duelo explica el estado del prototipo. |
-| Álbum | Abrir desde Inicio o desde Mis sobres. Pasar páginas en móvil y escritorio. | 27 huecos, tres exclusivas al final y sin casillas adicionales. |
+| Álbum | Abrir desde Inicio o desde Mis sobres. Pasar páginas en móvil y escritorio. | 27 huecos, tres exclusivas al final y sin casillas adicionales. Los huecos obtenidos muestran la carta completa sin clic y un contador si hay duplicados. |
 | Ficha | Abrir desde el álbum o desde el último sobre. Cerrar con Escape o Cerrar. | Nombre, puesto, PV e imagen corresponden a la ficha seleccionada. El foco vuelve al control que abrió la ficha. |
 | Sobres | Abrir uno desde cada camino y recargar. | Seis cartas distintas por sobre. Una exclusiva, si sale, pertenece al camino elegido. Se conservan las copias y el último sobre. |
 | Almacenamiento | Bloquear el almacenamiento e intentar abrir. | El estado explica el problema. La aplicación evita presentar una apertura como guardada. |
