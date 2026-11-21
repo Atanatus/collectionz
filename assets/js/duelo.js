@@ -165,8 +165,9 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '005', '012', '015', '019'].includes(species)) return null;
+  if (!['004', '005', '012', '015', '019', '024'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
+    species === '024' ? active && active.hp * 2 <= seasonCardsById.get(active.id).hp :
     species === '005' ? true :
     species === '004' ? active && active.energy < 10 :
     species === '012' ? active && (active.exhausted || active.movementLocked) :
@@ -188,6 +189,9 @@ function useTrialSupport(duel, target = 'active') {
     const maxHp = seasonCardsById.get(creature.id).hp;
     if (creature.hp >= maxHp) return false;
     creature.hp = Math.min(maxHp, creature.hp + 150);
+  } else if (card.number === '024') {
+    active.hp = Math.min(seasonCardsById.get(active.id).hp, active.hp + 250);
+    support.exhausted = 2;
   } else if (card.number === '012') {
     if (target === 'exhaustion' && active.exhausted) active.exhausted = 0;
     else if (target === 'movement' && active.movementLocked) active.movementLocked = false;
