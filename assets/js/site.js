@@ -280,8 +280,11 @@ function renderAlbums(view) {
 function render() {
   const [requested, view] = location.hash.slice(1).split('/');
   const section = sections.includes(requested) ? requested : 'inicio';
-  for (const link of document.querySelectorAll('nav a')) {
-    if (link.hash === '#' + (['duelo', 'ayuda'].includes(section) ? 'inicio' : section)) link.setAttribute('aria-current', 'page');
+  const current = section === 'perfil' && ['mazo', 'mis-sobres'].includes(view)
+    ? `#perfil/${view}` : `#${section}`;
+  document.body.classList.toggle('duel-in-progress', section === 'duelo' && view === 'partida' && Boolean(trialDuel));
+  for (const link of document.querySelectorAll('.site-sidebar a, .player-panel a')) {
+    if (link.hash === current) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
 
