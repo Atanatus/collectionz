@@ -65,6 +65,14 @@ article + article { margin-top: 1rem; }
 .actions { flex-wrap: wrap; }
 .cover { width: min(100%, 17rem); aspect-ratio: 4/5; background: repeating-conic-gradient(at 54% 44%, #ffffff29 0deg 3deg, transparent 3deg 12deg), linear-gradient(150deg, #5627b1, #8b29c1 65%, #aa1b71); color: white; font-size: 1.55rem; box-shadow: 5px 5px var(--ink), inset 8px 0 #34117166; }
 .book { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .25rem; margin-block: 1rem; }
+@media (min-width: 601px) {
+  .book > .page:only-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc((100% - .25rem) / 2);
+  }
+}
+.album-page-spacer { visibility: hidden; }
 .cards { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .45rem; }
 .card { aspect-ratio: 5 / 7; border: 1px dashed #75558e; display: grid; place-content: center; text-align: center; overflow-wrap: anywhere; background: #f3eaff; }
 .owned { background: repeating-conic-gradient(from 25deg, #ffffff30 0deg 7deg, transparent 7deg 21deg), var(--violet); border: var(--line); font-weight: 750; }

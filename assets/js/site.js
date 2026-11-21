@@ -27,7 +27,9 @@ function renderPage(album, index) {
       <small>#${card.number}</small><span>${name}</span>
     </button>`;
   }).join('');
-  return `<section class="page" aria-label="Página ${index + 1}"><div class="cards">${cards}</div><p>Página ${index + 1}</p></section>`;
+  const emptySlots = '<div class="card album-page-spacer" aria-hidden="true"></div>'
+    .repeat(Math.max(0, Math.min(6, (index + 1) * 6 - seasonOneCards.length)));
+  return `<section class="page" aria-label="Página ${index + 1}"><div class="cards">${cards}${emptySlots}</div><p>Página ${index + 1}</p></section>`;
 }
 
 function trialInventoryForDisplay() {
