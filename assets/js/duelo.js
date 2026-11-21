@@ -156,6 +156,7 @@ function trialDefenseSkill(side, slot) {
   const creature = side[slot];
   if (!creature) return null;
   const card = seasonCardsById.get(creature.id);
+  if (slot === 'active' && card.number === '014') return { ...card.skills[1], reduction: 150, protectsSupport: true };
   if (slot === 'active' && card.number === '023') return { ...card.skills[1], healing: 125 };
   if (slot === 'active' && card.number === '003') return { ...card.skills[1], reduction: 150 };
   if (slot === 'support' && card.number === '010') return { ...card.skills[0], reduction: 125 };
@@ -166,9 +167,10 @@ function canUseTrialDefense(duel, slot) {
   const side = duel[duel.turn];
   const skill = trialDefenseSkill(side, slot);
   const creature = side[slot];
+  if (skill?.protectsSupport && (!side.support?.exhausted || side.support.guard)) return false;
   return Boolean(!duel.result && duel.phase === 'actions' && skill &&
     !creature.acted && !creature.exhausted && creature.energy >= skill.cost &&
-    (skill.healing ? creature.hp < seasonCardsById.get(creature.id).hp : !creature.guard));
+    (skill.healing ? creature.hp < seasonCardsById.get(creature.id).hp : skill.protectsSupport || !creature.guard));
 }
 
 function useTrialDefense(duel, slot) {
@@ -181,7 +183,8 @@ function useTrialDefense(duel, slot) {
   if (skill.healing) {
     creature.hp = Math.min(seasonCardsById.get(creature.id).hp, creature.hp + skill.healing);
   } else {
-    creature.guard = skill.reduction;
+    const target = skill.protectsSupport ? side.support : creature;
+    target.guard = skill.reduction;
   }
   duel.message = skill.ability;
   return true;

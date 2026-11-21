@@ -276,7 +276,7 @@ function renderStartedTrialDuel(duel) {
     const defenseControls = ['active', 'support'].map(slot => {
       const defense = trialDefenseSkill(duel.player, slot);
       return defense ? `<button data-duel-action="guard" data-duel-slot="${slot}" ${canUseTrialDefense(duel, slot) ? '' : 'disabled'}>
-        ${defense.ability} · ${defense.cost} energía · ${defense.healing ? `Cura hasta ${defense.healing} PV` : `Bloquea hasta ${defense.reduction}`}</button>` : '';
+        ${defense.ability} · ${defense.cost} energía · ${defense.healing ? `Cura hasta ${defense.healing} PV` : `Bloquea hasta ${defense.reduction}${defense.protectsSupport ? ' al Apoyo' : ''}`}</button>` : '';
     }).join(' ');
     controls = `${supportControls} ${defenseControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
