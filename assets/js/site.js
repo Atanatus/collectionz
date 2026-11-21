@@ -225,15 +225,18 @@ function renderStartedTrialDuel(duel) {
     const { active: enemyActive, support: enemySupport } = duel.rival;
     const bothOccupied = Boolean(enemyActive && enemySupport);
     const attackControls = attacks.map((attack, index) => {
-      const disabled = active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : '';
+      const unavailable = active.acted ? 'Ya actuó' : active.exhausted ? 'Agotada'
+        : active.energy < attack.cost ? `Falta energía · ${active.energy}/${attack.cost}` : '';
+      const disabled = unavailable ? 'disabled' : '';
+      const reason = unavailable ? `<small>${unavailable}</small>` : '';
       const bonus = duel.player.bonus;
       const damage = enemyActive || enemySupport ? `${attack.damage + bonus} daño` : '1 vida';
       const splash = bothOccupied && attack.splashDamage ? ` + ${attack.splashDamage} al Apoyo` : '';
       const attackSupport = bothOccupied && attack.supportTargetDamage
         ? `<button data-duel-action="attack" data-duel-attack="${index}" data-duel-target="support" ${disabled}>
-          ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño</button>` : '';
+          ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño${reason}</button>` : '';
       return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
-        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}</button> ${attackSupport}`;
+        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
     }).join(' ');
     controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
