@@ -207,20 +207,40 @@ function renderStartedTrialDuel(duel) {
     const attacks = trialActiveAttacks(active);
     const skill = trialSupportSkill(duel.player);
     const support = duel.player.support;
-    const healing = support && seasonCardsById.get(support.id).number === '015';
+    const supportSpecies = support && seasonCardsById.get(support.id).number;
+    const healing = supportSpecies === '015';
+    const liberation = supportSpecies === '012';
     const targets = healing ? ['active', 'support'].filter(slot => {
       const creature = duel.player[slot];
       return creature && creature.hp < seasonCardsById.get(creature.id).hp;
-    }) : ['active'];
+    }) : liberation ? [
+      ...(active?.exhausted ? ['exhaustion'] : []),
+      ...(active?.movementLocked ? ['movement'] : [])
+    ] : ['active'];
+    const supportLabels = { exhaustion: 'Quitar agotamiento', movement: 'Quitar bloqueo de movimiento' };
     const supportControls = skill ? targets.map(slot =>
       `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
-        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
+        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : liberation ? ` · ${supportLabels[slot]}` : ''} · ${skill.cost} energía</button>`
     ).join(' ') : '';
-    const attackControls = attacks.map((attack, index) =>
-      `<button data-duel-action="attack" data-duel-attack="${index}" ${active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : ''}>
-        ${attack.ability} · ${attack.cost} energía · ${duel.rival.active || duel.rival.support ? `${attack.damage + duel.player.bonus} daño` : '1 vida'}${attack.exhausts ? ' · Agota' : ''}</button>`
-    ).join(' ');
+    const { active: enemyActive, support: enemySupport } = duel.rival;
+    const bothOccupied = Boolean(enemyActive && enemySupport);
+    const attackControls = attacks.map((attack, index) => {
+      const disabled = active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : '';
+      const bonus = duel.player.bonus;
+      const damage = enemyActive || enemySupport ? `${attack.damage + bonus} daño` : '1 vida';
+      const splash = bothOccupied && attack.splashDamage ? ` + ${attack.splashDamage} al Apoyo` : '';
+      const attackSupport = bothOccupied && attack.supportTargetDamage
+        ? `<button data-duel-action="attack" data-duel-attack="${index}" data-duel-target="support" ${disabled}>
+          ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño</button>` : '';
+      return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
+        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}</button> ${attackSupport}`;
+    }).join(' ');
     controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+  }
+  const hybridMove = ownTurn ? trialHybridMove(duel) : null;
+  if (hybridMove) {
+    const label = hybridMove === 'swap' ? 'Intercambiar Híbridas' : 'Subir Apoyo a Activa';
+    controls = `<button type="button" data-duel-action="hybrid">${label}</button> ${controls}`;
   }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<div class="battle-screen">
@@ -391,8 +411,9 @@ main.addEventListener('click', event => {
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
+      case 'hybrid': moveTrialHybrid(trialDuel); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
-      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
+      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':
         endTrialTurn(trialDuel);
         playTrialRival(trialDuel);
