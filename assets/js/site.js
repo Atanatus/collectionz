@@ -304,7 +304,13 @@ function renderStartedTrialDuel(duel) {
       return defense ? `<button data-duel-action="guard" data-duel-slot="${slot}" ${canUseTrialDefense(duel, slot) ? '' : 'disabled'}>
         ${defense.ability} · ${defense.cost} energía · ${defense.healing ? `Cura hasta ${defense.healing} PV` : `Bloquea hasta ${defense.reduction}${defense.protectsSupport ? ' al Apoyo' : ''}`}</button>` : '';
     }).join(' ');
-    controls = `${supportControls} ${defenseControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+    const swapTargets = trialVitalSwapTargets(duel);
+    const swapControls = swapTargets.length ? `<label>Criatura que vuelve
+      <select id="duel-vital-target">${swapTargets.map(({ card, index }) =>
+        `<option value="${index}">${card.species}${card.variant ? ` · ${card.variant}` : ''}</option>`).join('')}
+      </select></label>
+      <button type="button" data-duel-action="vital-swap">Intercambio vital · 0 energía</button>` : '';
+    controls = `${supportControls} ${defenseControls} ${swapControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
   if (ownTurn && canUseTrialReturn(duel)) {
     const options = duel.player.discarded.map((id, index) => {
@@ -502,6 +508,7 @@ main.addEventListener('click', event => {
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'hybrid': moveTrialHybrid(trialDuel); break;
+      case 'vital-swap': useTrialVitalSwap(trialDuel, Number(main.querySelector('#duel-vital-target')?.value)); break;
       case 'guard': useTrialDefense(trialDuel, button.dataset.duelSlot); break;
       case 'support':
         if (trialDuel.player.support?.id === 'accretion-002-base') {

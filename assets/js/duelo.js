@@ -33,7 +33,7 @@ function createTrialActive(id) {
 
 function startTrialDuel(opening) {
   function createSide(side) {
-    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, interposition: false, discarded: [], lives: 3, germinationUsed: false };
+    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, interposition: false, discarded: [], lives: 3, germinationUsed: false, vitalSwapUsed: false };
   }
   const duel = {
     turn: opening.starter, round: 1, result: null, seen: new Map(), message: '',
@@ -189,6 +189,33 @@ function useTrialDefense(duel, slot) {
     target.guard = skill.reduction;
   }
   duel.message = skill.ability;
+  return true;
+}
+
+function trialVitalSwapTargets(duel) {
+  const side = duel[duel.turn];
+  const active = side.active;
+  if (duel.result || duel.phase !== 'actions' || active?.id !== 'accretion-023-base' ||
+      active.acted || active.exhausted || active.movementLocked || active.deferredDamage || side.vitalSwapUsed) return [];
+
+  return side.discarded.flatMap((id, index) => {
+    const card = seasonCardsById.get(id);
+    return card.role === 'Apoyo' ? [] : [{ card, index }];
+  });
+}
+
+function useTrialVitalSwap(duel, index) {
+  if (!trialVitalSwapTargets(duel).some(target => target.index === index)) return false;
+
+  const side = duel[duel.turn];
+  const replis = side.active;
+  const [id] = side.discarded.splice(index, 1);
+  side.discarded.push(replis.id);
+  side.active = createTrialActive(id);
+  side.interposition = false;
+  side.active.energy = 1;
+  side.vitalSwapUsed = true;
+  duel.message = seasonCardsById.get(replis.id).skills[2].ability;
   return true;
 }
 
