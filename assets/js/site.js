@@ -149,13 +149,34 @@ function renderTrialDuelCard(id) {
   return `<button type="button" data-card="${card.id}">${name}</button>`;
 }
 
+function renderBattleCard(creature) {
+  const card = seasonCardsById.get(creature.id);
+  const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+  return `<button type="button" class="battle-card" data-card="${card.id}" aria-label="Ver carta de ${name}">
+      <img src="${cardImagePath(card)}" alt="" width="1000" height="1400">
+    </button>
+    <span class="battle-stats">${creature.hp} PV · ${creature.energy} E${creature.exhausted ? ' · Agotada' : ''}</span>`;
+}
+
 function renderStartedTrialDuel(duel) {
   const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) => {
-    const { active, support } = side;
-    return `<section><h2>${label}</h2><p>${side.lives} vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
-      <p>Activa: ${active ? `${renderTrialDuelCard(active.id)} · ${active.hp} PV · ${active.energy} energía${active.exhausted ? ' · Agotada' : ''}` : 'Vacía'}</p>
-      <p>Apoyo: ${support ? `${renderTrialDuelCard(support.id)} · ${support.hp} PV · ${support.energy} energía` : 'Vacío'}</p>
-      <p>Eliminadas: ${side.discarded.map(renderTrialDuelCard).join(' ') || '0'}</p></section>`;
+    const slots = [['Activa', side.active], ['Apoyo', side.support]].map(([name, creature]) =>
+      `<div class="battle-slot"><strong>${name}</strong>
+        ${creature ? renderBattleCard(creature) : '<div class="battle-empty" aria-label="Puesto vacío">Vacío</div>'}</div>`
+    ).join('');
+    const deck = side.deck.length
+      ? '<img src="assets/cartas/temporada-1/reverso.png" alt="" width="1000" height="1400">'
+      : '<div class="battle-empty">Vacío</div>';
+    return `<section class="battle-side" aria-label="${label}">
+      <h2>${label} <small>${side.lives} vidas · Mano ${side.hand.length}</small></h2>
+      <div class="battle-zones">
+        <div class="battle-slot"><strong>Mazo · ${side.deck.length}</strong>${deck}</div>
+        ${slots}
+        <details class="battle-discard"><summary>Eliminadas · ${side.discarded.length}</summary>
+          <div>${side.discarded.map(renderTrialDuelCard).join(' ') || 'Vacío'}</div>
+        </details>
+      </div>
+    </section>`;
   }).join('');
   const ownTurn = duel.turn === 'player' && !duel.result;
   const hand = duel.player.hand.map((creature, index) => {
@@ -164,7 +185,7 @@ function renderStartedTrialDuel(duel) {
       const action = duel.player[slot] ? 'Relevar' : slot === 'active' || duel.player.supportLost ? 'Reponer' : 'Colocar';
       return `<button type="button" data-duel-action="place" data-duel-slot="${slot}" data-duel-replace="${index}">${action} ${label}</button>`;
     }).join(' ') : '';
-    return `${renderTrialDuelCard(creature.id)} · ${creature.hp} PV · ${creature.energy} energía ${buttons}`;
+    return `<li class="battle-slot">${renderBattleCard(creature)}${buttons}</li>`;
   }).join(' ');
   let controls = '';
   if (ownTurn && duel.phase === 'draw') {
@@ -195,8 +216,8 @@ function renderStartedTrialDuel(duel) {
   return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
     <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
     <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
-    <div class="products">${sides}</div>
-    <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>
+    <div class="battle-board">${sides}</div>
+    <section class="battle-hand"><h2>Tu mano</h2>${hand ? `<ul>${hand}</ul>` : '<p>Vacía</p>'}</section>
     <div class="actions">${controls}</div>
     <p role="status">${duel.message}</p>
     <p><a href="#duelo/preparar">Preparar otra partida →</a></p>`;

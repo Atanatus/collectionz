@@ -107,3 +107,46 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
   background: linear-gradient(0deg, #140c22eb, transparent 42%),
     url("../img/portada-album-temporada-1.png") center / cover no-repeat #341171;
 }
+
+.battle-board {
+  --battle-card-width: clamp(3.25rem, 8vw, 6rem);
+  display: grid;
+  border: var(--line);
+  background: radial-gradient(ellipse at center, #522a73, var(--ink) 75%);
+  color: var(--paper);
+}
+.battle-side { padding: .65rem; }
+.battle-side + .battle-side { border-top: 2px solid #c79ce8; }
+.battle-side h2 { text-align: center; font-size: 1rem; }
+.battle-side h2 small { margin-inline-start: .5rem; font-size: .8rem; font-weight: 600; }
+.battle-zones {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(2, var(--battle-card-width)) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(.35rem, 2vw, 1rem);
+}
+.battle-slot { display: grid; align-content: start; gap: .25rem; text-align: center; min-width: 0; }
+.battle-zones > .battle-slot:first-child { width: var(--battle-card-width); }
+.battle-slot strong, .battle-stats, .battle-discard { font-size: .75rem; overflow-wrap: anywhere; }
+.battle-card { display: block; width: 100%; padding: 0; border: 0; background: transparent; }
+.battle-slot img { display: block; width: 100%; height: auto; }
+.battle-empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 5 / 7;
+  border: 1px dashed #c79ce8;
+  font-size: .75rem;
+}
+.battle-discard { justify-self: end; text-align: right; }
+.battle-discard summary { cursor: pointer; }
+.battle-discard button { display: block; margin: .25rem 0 0 auto; color: var(--ink); }
+.battle-hand { margin-block: .65rem; }
+.battle-hand h2 { font-size: 1rem; }
+.battle-hand ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 6rem));
+  gap: .55rem;
+  padding: 0;
+  margin: 0;
+}
+.battle-hand button[data-duel-action] { padding: .2rem; font-size: .7rem; }
