@@ -33,7 +33,7 @@ function createTrialActive(id) {
 
 function startTrialDuel(opening) {
   function createSide(side) {
-    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, discarded: [], lives: 3 };
+    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, discarded: [], lives: 3, germinationUsed: false };
   }
   const duel = {
     turn: opening.starter, round: 1, result: null, seen: new Map(), message: '',
@@ -165,8 +165,9 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '005', '012', '015', '019', '024'].includes(species)) return null;
+  if (!['004', '005', '012', '015', '018', '019', '024'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
+    species === '018' ? side.lives < 3 && !side.germinationUsed :
     species === '024' ? active && active.hp * 2 <= seasonCardsById.get(active.id).hp :
     species === '005' ? true :
     species === '004' ? active && active.energy < 10 :
@@ -189,6 +190,9 @@ function useTrialSupport(duel, target = 'active') {
     const maxHp = seasonCardsById.get(creature.id).hp;
     if (creature.hp >= maxHp) return false;
     creature.hp = Math.min(maxHp, creature.hp + 150);
+  } else if (card.number === '018') {
+    side.lives += 1;
+    side.germinationUsed = true;
   } else if (card.number === '024') {
     active.hp = Math.min(seasonCardsById.get(active.id).hp, active.hp + 250);
     support.exhausted = 2;
