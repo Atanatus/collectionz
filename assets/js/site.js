@@ -200,7 +200,7 @@ function renderStartedTrialDuel(duel) {
   const sides = [['Rival', 'rival'], ['Tú', 'player']].map(([label, sideKey]) => {
     const side = duel[sideKey];
     const slots = [['Activa', side.active], ['Apoyo', side.support]].map(([name, creature]) =>
-      `<div class="battle-slot"><strong>${name}</strong>
+      `<div class="battle-slot"><strong>${name}${name === 'Activa' && side.attackTax ? ' · +1 al ataque' : ''}</strong>
         ${creature ? renderBattleCard(creature) : '<div class="battle-empty" aria-label="Puesto vacío">Vacío</div>'}</div>`
     ).join('');
     const deck = side.deck.length
@@ -239,7 +239,7 @@ function renderStartedTrialDuel(duel) {
     controls = '<button data-duel-action="energy">Ir a acciones</button>';
   } else if (ownTurn && duel.phase === 'actions') {
     const active = duel.player.active;
-    const attacks = trialActiveAttacks(active);
+    const attacks = trialActiveAttacks(duel.player);
     const skill = trialSupportSkill(duel.player);
     const support = duel.player.support;
     const supportSpecies = support && seasonCardsById.get(support.id).number;

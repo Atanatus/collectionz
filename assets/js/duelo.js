@@ -33,7 +33,7 @@ function createTrialActive(id) {
 
 function startTrialDuel(opening) {
   function createSide(side) {
-    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, discarded: [], lives: 3 };
+    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, discarded: [], lives: 3 };
   }
   const duel = {
     turn: opening.starter, round: 1, result: null, seen: new Map(), message: '',
@@ -165,8 +165,9 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '012', '015', '019'].includes(species)) return null;
+  if (!['004', '005', '012', '015', '019'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
+    species === '005' ? true :
     species === '004' ? active && active.energy < 10 :
     species === '012' ? active && (active.exhausted || active.movementLocked) :
     species === '015' ? (active && active.hp < seasonCardsById.get(active.id).hp) || support.hp < card.hp :
@@ -192,6 +193,9 @@ function useTrialSupport(duel, target = 'active') {
     else if (target === 'movement' && active.movementLocked) active.movementLocked = false;
     else return false;
     support.exhausted = 2;
+  } else if (card.number === '005') {
+    const opponent = duel.turn === 'player' ? duel.rival : duel.player;
+    opponent.attackTax = 1;
   } else if (card.number === '004') {
     active.energy = Math.min(10, active.energy + 2);
   } else {
@@ -221,7 +225,11 @@ function trialBasicAttack(active) {
   return damage === null ? null : { ...skill, damage };
 }
 
-function trialActiveAttacks(active) {
+function trialActiveAttacks(side) {
+  return trialActiveAttackOptions(side.active).map(attack => ({ ...attack, cost: attack.cost + side.attackTax }));
+}
+
+function trialActiveAttackOptions(active) {
   const basic = trialBasicAttack(active);
   if (!basic) return [];
   const card = seasonCardsById.get(active.id);
@@ -240,7 +248,7 @@ function trialActiveAttacks(active) {
 
 function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   const active = duel[duel.turn].active;
-  const skill = trialActiveAttacks(active)[index];
+  const skill = trialActiveAttacks(duel[duel.turn])[index];
   if (duel.result || duel.phase !== 'actions' || !skill || active.acted || active.exhausted || active.energy < skill.cost) return false;
   const opponent = duel.turn === 'player' ? 'rival' : 'player';
   const target = duel[opponent];
@@ -252,6 +260,7 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   const damage = (aimAtSupport ? skill.supportTargetDamage : skill.damage) + side.bonus;
   const splash = bothOccupied ? skill.splashDamage : 0;
   side.bonus = 0;
+  side.attackTax = 0;
   active.energy -= skill.cost;
   active.acted = true;
   if (skill.exhausts) active.exhausted = 2;
@@ -292,6 +301,7 @@ function endTrialTurn(duel) {
   if (duel.result || duel.phase !== 'actions') return false;
   const side = duel[duel.turn];
   side.bonus = 0;
+  side.attackTax = 0;
   for (const creature of side.hand) creature.hitLastTurn = false;
   for (const creature of [side.active, side.support]) {
     if (!creature) continue;
