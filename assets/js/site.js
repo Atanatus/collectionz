@@ -158,11 +158,13 @@ function renderStartedTrialDuel(duel) {
       <p>Eliminadas: ${side.discarded.map(renderTrialDuelCard).join(' ') || '0'}</p></section>`;
   }).join('');
   const ownTurn = duel.turn === 'player' && !duel.result;
-  const hand = duel.player.hand.map((id, index) => {
-    const replacement = ownTurn && duel.phase === 'replacement' && canReplaceTrialActive(duel.player, index);
-    const support = ownTurn && duel.phase === 'replacement' && canPlaceTrialSupport(duel.player, index);
-    const supportButton = support ? `<button type="button" data-duel-action="place-support" data-duel-replace="${index}">${duel.player.supportLost ? 'Reponer' : 'Colocar'} Apoyo</button>` : '';
-    return `${renderTrialDuelCard(id)} ${replacement ? `<button type="button" data-duel-replace="${index}">Reponer Activa</button>` : ''} ${supportButton}`;
+  const hand = duel.player.hand.map((creature, index) => {
+    const buttons = ownTurn ? ['active', 'support'].filter(slot => canPlaceTrialCreature(duel, slot, index)).map(slot => {
+      const label = slot === 'active' ? 'Activa' : 'Apoyo';
+      const action = duel.player[slot] ? 'Relevar' : slot === 'active' || duel.player.supportLost ? 'Reponer' : 'Colocar';
+      return `<button type="button" data-duel-action="place" data-duel-slot="${slot}" data-duel-replace="${index}">${action} ${label}</button>`;
+    }).join(' ') : '';
+    return `${renderTrialDuelCard(creature.id)} · ${creature.hp} PV · ${creature.energy} energía ${buttons}`;
   }).join(' ');
   let controls = '';
   if (ownTurn && duel.phase === 'draw') {
@@ -345,14 +347,13 @@ main.addEventListener('click', event => {
       case 'draw': resolveTrialDraw(trialDuel, true); break;
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
-      case 'place-support': placeTrialSupport(trialDuel, Number(button.dataset.duelReplace)); break;
+      case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
       case 'end':
         endTrialTurn(trialDuel);
         playTrialRival(trialDuel);
         break;
-      default: replaceTrialActive(trialDuel, Number(button.dataset.duelReplace));
     }
     render();
   } else if (button.dataset.card) {
