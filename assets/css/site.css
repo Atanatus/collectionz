@@ -148,9 +148,11 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
   border: 1px dashed #c79ce8;
   font-size: .75rem;
 }
-.battle-discard { justify-self: end; text-align: right; }
-.battle-discard summary { cursor: pointer; }
-.battle-discard button { display: block; margin: .25rem 0 0 auto; color: var(--ink); }
+.battle-discard { justify-self: end; text-align: right; max-width: 100%; padding: .25rem; background: transparent; color: inherit; border: 1px solid #c79ce8; }
+#duel-discard { width: min(36rem, calc(100% - 2rem)); border: var(--line); background: var(--paper); color: var(--ink); }
+#duel-discard::backdrop { background: #170c31bb; }
+#duel-discard-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap: .75rem; padding: 0; list-style: none; }
+#duel-discard-cards img { display: block; width: 100%; height: auto; }
 .battle-hand { margin-block: .65rem; }
 .battle-hand h2 { font-size: 1rem; }
 .battle-hand ul {
@@ -199,3 +201,18 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 .battle-controls button[data-duel-action="end"] { background: var(--ink); color: var(--paper); }
 
 .battle-hand-empty { list-style: none; background: #f5eefb; border-color: #846d97; }
+
+.duel-in-progress > header { padding-block: .35rem; }
+.duel-in-progress > header .brand { font-size: 1.45rem; }
+#duel-result { width: min(28rem, calc(100% - 2rem)); border: var(--line); background: var(--paper); color: var(--ink); }
+#duel-result::backdrop { background: #170c31bb; }
+#duel-result form { margin-top: 1rem; }
+
+
+@media (min-width: 701px) and (max-height: 760px) {
+  .duel-in-progress .site-layout > main { padding-block: .5rem; }
+  .duel-in-progress .site-layout { padding-block: .5rem; }
+  .battle-board { --battle-card-width: clamp(3.25rem, 11dvh, 5rem); }
+  .battle-side { padding: .4rem; }
+  .battle-console .battle-hand ul { grid-template-columns: repeat(6, minmax(0, clamp(3.25rem, 9dvh, 4.5rem))); }
+}
