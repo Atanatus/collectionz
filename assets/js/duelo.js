@@ -28,7 +28,7 @@ function prepareTrialOpening(selection, random = Math.random) {
 }
 
 function createTrialActive(id) {
-  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, movementLocked: false, hitLastTurn: false };
+  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, movementLocked: false, guard: 0, hitLastTurn: false };
 }
 
 function startTrialDuel(opening) {
@@ -54,8 +54,8 @@ function beginTrialTurn(duel) {
   side.placed.support = false;
   const key = JSON.stringify([duel.turn, duel.player, duel.rival], (name, value) => {
     if (name === 'acted' || name === 'replaced' || name === 'placed') return undefined;
-    if (name === 'hand') return value.map(({ id, hp, energy, exhausted, movementLocked, hitLastTurn }) =>
-      [id, hp, energy, exhausted, movementLocked, hitLastTurn]).sort((left, right) =>
+    if (name === 'hand') return value.map(({ id, hp, energy, exhausted, movementLocked, guard, hitLastTurn }) =>
+      [id, hp, energy, exhausted, movementLocked, guard, hitLastTurn]).sort((left, right) =>
       JSON.stringify(left).localeCompare(JSON.stringify(right)));
     return name === 'discarded' ? [...value].sort() : value;
   });
@@ -126,6 +126,35 @@ function moveTrialHybrid(duel) {
   side.support = active;
   if (move === 'promote') side.supportLost = false;
   duel.message = move === 'swap' ? 'Híbridas intercambiadas' : 'Híbrida ascendida a Activa';
+  return true;
+}
+
+function trialGuardSkill(side, slot) {
+  const creature = side[slot];
+  if (!creature) return null;
+  const card = seasonCardsById.get(creature.id);
+  if (slot === 'active' && card.number === '003') return { ...card.skills[1], reduction: 150 };
+  if (slot === 'support' && card.number === '010') return { ...card.skills[0], reduction: 125 };
+  return null;
+}
+
+function canUseTrialGuard(duel, slot) {
+  const side = duel[duel.turn];
+  const skill = trialGuardSkill(side, slot);
+  const creature = side[slot];
+  return Boolean(!duel.result && duel.phase === 'actions' && skill &&
+    !creature.acted && !creature.exhausted && !creature.guard && creature.energy >= skill.cost);
+}
+
+function useTrialGuard(duel, slot) {
+  if (!canUseTrialGuard(duel, slot)) return false;
+  const side = duel[duel.turn];
+  const creature = side[slot];
+  const skill = trialGuardSkill(side, slot);
+  creature.energy -= skill.cost;
+  creature.acted = true;
+  creature.guard = skill.reduction;
+  duel.message = skill.ability;
   return true;
 }
 
@@ -201,6 +230,7 @@ function trialActiveAttacks(active) {
   if (card.number === '007') return [basic, { ...special, damage: 225, splashDamage: 125 }];
   if (['017', '020'].includes(card.number)) return [basic, { ...special, exhausts: true }];
   if (card.number === '008') return [basic, { ...special, locksActive: true }];
+  if (card.number === '016') return [basic, { ...special, ignoresReduction: 100 }];
   if (card.number !== '001') return [basic];
   return [basic, { ...special,
     damage: special.damage ?? (active.hitLastTurn ? (card.variant ? 300 : 250) : 180),
@@ -233,8 +263,14 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   for (const [hitSlot, amount] of hits) {
     const hit = target[hitSlot];
     if (!hit) continue;
-    hit.hitLastTurn = amount > 0;
-    hit.hp = Math.max(0, hit.hp - amount);
+    const blocked = Math.min(amount, Math.max(0, hit.guard - (skill.ignoresReduction ?? 0)));
+    if (blocked > 0) {
+      hit.guard = 0;
+      duel.message += ` · ${blocked} bloqueados en ${hitSlot === 'active' ? 'Activa' : 'Apoyo'}`;
+    }
+    const applied = amount - blocked;
+    hit.hitLastTurn ||= applied > 0;
+    hit.hp = Math.max(0, hit.hp - applied);
     if (hit.hp > 0) {
       if (skill.locksActive && hitSlot === 'active') {
         hit.movementLocked = true;
@@ -264,6 +300,10 @@ function endTrialTurn(duel) {
     if (creature.exhausted) creature.exhausted -= 1;
   }
   duel.turn = duel.turn === 'player' ? 'rival' : 'player';
+  const next = duel[duel.turn];
+  for (const creature of [next.active, next.support, ...next.hand]) {
+    if (creature) creature.guard = 0;
+  }
   duel.round += 1;
   beginTrialTurn(duel);
   return true;
@@ -283,6 +323,7 @@ function playTrialRival(duel) {
   } else if (!useTrialSupport(duel)) {
     useTrialSupport(duel, 'support');
   }
-  if (!attackTrialDuel(duel, 1)) attackTrialDuel(duel);
+  useTrialGuard(duel, 'support');
+  if (!attackTrialDuel(duel, 1) && !useTrialGuard(duel, 'active')) attackTrialDuel(duel);
   endTrialTurn(duel);
 }
