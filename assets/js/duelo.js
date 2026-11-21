@@ -168,38 +168,50 @@ function trialActiveAttacks(active) {
   const basic = trialBasicAttack(active);
   if (!basic) return [];
   const card = seasonCardsById.get(active.id);
-  if (card.number !== '001') return [basic];
   const special = card.skills[1];
+  if (card.number === '006') return [basic, { ...special, damage: 350, supportTargetDamage: 250 }];
+  if (card.number === '007') return [basic, { ...special, damage: 225, splashDamage: 125 }];
+  if (card.number !== '001') return [basic];
   return [basic, { ...special,
     damage: special.damage ?? (active.hitLastTurn ? (card.variant ? 300 : 250) : 180),
     exhausts: card.variant === 'Contención'
   }];
 }
 
-function attackTrialDuel(duel, index = 0) {
+function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   const active = duel[duel.turn].active;
   const skill = trialActiveAttacks(active)[index];
   if (duel.result || duel.phase !== 'actions' || !skill || active.acted || active.exhausted || active.energy < skill.cost) return false;
   const opponent = duel.turn === 'player' ? 'rival' : 'player';
   const target = duel[opponent];
-  const slot = target.active ? 'active' : 'support';
+  const bothOccupied = Boolean(target.active && target.support);
+  if (aimAtSupport && (!bothOccupied || !skill.supportTargetDamage)) return false;
+  const slot = target.active && !aimAtSupport ? 'active' : 'support';
   const creature = target[slot];
   const side = duel[duel.turn];
-  const damage = skill.damage + side.bonus;
+  const damage = (aimAtSupport ? skill.supportTargetDamage : skill.damage) + side.bonus;
+  const splash = bothOccupied ? skill.splashDamage : 0;
   side.bonus = 0;
   active.energy -= skill.cost;
   active.acted = true;
   if (skill.exhausts) active.exhausted = 2;
   duel.message = skill.ability + (creature ? ` · ${damage} de daño` : ' · Ataque directo');
-  if (creature) {
-    creature.hitLastTurn = damage > 0;
-    creature.hp = Math.max(0, creature.hp - damage);
-    if (creature.hp > 0) return true;
-    target.discarded.push(creature.id);
-    target[slot] = null;
-    if (slot === 'support') target.supportLost = true;
+  if (splash) duel.message += ` · ${splash} al Apoyo`;
+  const hits = [[slot, damage]];
+  if (splash) hits.push(['support', splash]);
+  let lostLives = creature ? 0 : 1;
+  for (const [hitSlot, amount] of hits) {
+    const hit = target[hitSlot];
+    if (!hit) continue;
+    hit.hitLastTurn = amount > 0;
+    hit.hp = Math.max(0, hit.hp - amount);
+    if (hit.hp > 0) continue;
+    target.discarded.push(hit.id);
+    target[hitSlot] = null;
+    if (hitSlot === 'support') target.supportLost = true;
+    lostLives += 1;
   }
-  target.lives -= 1;
+  target.lives = Math.max(0, target.lives - lostLives);
   if (!target.lives) duel.result = duel.turn;
   return true;
 }

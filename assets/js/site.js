@@ -185,15 +185,24 @@ function renderStartedTrialDuel(duel) {
       `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
         ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
     ).join(' ') : '';
-    const attackControls = attacks.map((attack, index) =>
-      `<button data-duel-action="attack" data-duel-attack="${index}" ${active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : ''}>
-        ${attack.ability} · ${attack.cost} energía · ${duel.rival.active || duel.rival.support ? `${attack.damage + duel.player.bonus} daño` : '1 vida'}${attack.exhausts ? ' · Agota' : ''}</button>`
-    ).join(' ');
+    const { active: enemyActive, support: enemySupport } = duel.rival;
+    const bothOccupied = Boolean(enemyActive && enemySupport);
+    const attackControls = attacks.map((attack, index) => {
+      const disabled = active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : '';
+      const bonus = duel.player.bonus;
+      const damage = enemyActive || enemySupport ? `${attack.damage + bonus} daño` : '1 vida';
+      const splash = bothOccupied && attack.splashDamage ? ` + ${attack.splashDamage} al Apoyo` : '';
+      const attackSupport = bothOccupied && attack.supportTargetDamage
+        ? `<button data-duel-action="attack" data-duel-attack="${index}" data-duel-target="support" ${disabled}>
+          ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño</button>` : '';
+      return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
+        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}</button> ${attackSupport}`;
+    }).join(' ');
     controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-    <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
+    <p>Prueba local con ataques básicos, ataques especiales de Mueca, Vidraco y Trémora y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
     <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
     <div class="products">${sides}</div>
     <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>
@@ -349,7 +358,7 @@ main.addEventListener('click', event => {
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
-      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
+      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':
         endTrialTurn(trialDuel);
         playTrialRival(trialDuel);
