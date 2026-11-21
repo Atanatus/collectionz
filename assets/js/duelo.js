@@ -28,7 +28,7 @@ function prepareTrialOpening(selection, random = Math.random) {
 }
 
 function createTrialActive(id) {
-  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false };
+  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, hitLastTurn: false };
 }
 
 function startTrialDuel(opening) {
@@ -158,10 +158,22 @@ function trialBasicAttack(active) {
   return damage === null ? null : { ...skill, damage };
 }
 
-function attackTrialDuel(duel) {
+function trialActiveAttacks(active) {
+  const basic = trialBasicAttack(active);
+  if (!basic) return [];
+  const card = seasonCardsById.get(active.id);
+  if (card.number !== '001') return [basic];
+  const special = card.skills[1];
+  return [basic, { ...special,
+    damage: special.damage ?? (active.hitLastTurn ? (card.variant ? 300 : 250) : 180),
+    exhausts: card.variant === 'Contención'
+  }];
+}
+
+function attackTrialDuel(duel, index = 0) {
   const active = duel[duel.turn].active;
-  const skill = trialBasicAttack(active);
-  if (duel.result || duel.phase !== 'actions' || !skill || active.acted || active.energy < skill.cost) return false;
+  const skill = trialActiveAttacks(active)[index];
+  if (duel.result || duel.phase !== 'actions' || !skill || active.acted || active.exhausted || active.energy < skill.cost) return false;
   const opponent = duel.turn === 'player' ? 'rival' : 'player';
   const target = duel[opponent];
   const slot = target.active ? 'active' : 'support';
@@ -171,8 +183,10 @@ function attackTrialDuel(duel) {
   side.bonus = 0;
   active.energy -= skill.cost;
   active.acted = true;
+  if (skill.exhausts) active.exhausted = 2;
   duel.message = skill.ability + (creature ? ` · ${damage} de daño` : ' · Ataque directo');
   if (creature) {
+    creature.hitLastTurn = damage > 0;
     creature.hp = Math.max(0, creature.hp - damage);
     if (creature.hp > 0) return true;
     target.discarded.push(creature.id);
@@ -186,7 +200,13 @@ function attackTrialDuel(duel) {
 
 function endTrialTurn(duel) {
   if (duel.result || duel.phase !== 'actions') return false;
-  duel[duel.turn].bonus = 0;
+  const side = duel[duel.turn];
+  side.bonus = 0;
+  for (const creature of [side.active, side.support]) {
+    if (!creature) continue;
+    creature.hitLastTurn = false;
+    if (creature.exhausted) creature.exhausted -= 1;
+  }
   duel.turn = duel.turn === 'player' ? 'rival' : 'player';
   duel.round += 1;
   beginTrialTurn(duel);
@@ -202,6 +222,6 @@ function playTrialRival(duel) {
   if (supportIndex >= 0) placeTrialSupport(duel, supportIndex);
   advanceTrialEnergy(duel);
   if (!useTrialSupport(duel)) useTrialSupport(duel, 'support');
-  attackTrialDuel(duel);
+  if (!attackTrialDuel(duel, 1)) attackTrialDuel(duel);
   endTrialTurn(duel);
 }

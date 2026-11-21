@@ -153,7 +153,7 @@ function renderStartedTrialDuel(duel) {
   const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) => {
     const { active, support } = side;
     return `<section><h2>${label}</h2><p>${side.lives} vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
-      <p>Activa: ${active ? `${renderTrialDuelCard(active.id)} · ${active.hp} PV · ${active.energy} energía` : 'Vacía'}</p>
+      <p>Activa: ${active ? `${renderTrialDuelCard(active.id)} · ${active.hp} PV · ${active.energy} energía${active.exhausted ? ' · Agotada' : ''}` : 'Vacía'}</p>
       <p>Apoyo: ${support ? `${renderTrialDuelCard(support.id)} · ${support.hp} PV · ${support.energy} energía` : 'Vacío'}</p>
       <p>Eliminadas: ${side.discarded.map(renderTrialDuelCard).join(' ') || '0'}</p></section>`;
   }).join('');
@@ -171,7 +171,7 @@ function renderStartedTrialDuel(duel) {
     controls = '<button data-duel-action="energy">Ir a acciones</button>';
   } else if (ownTurn && duel.phase === 'actions') {
     const active = duel.player.active;
-    const attack = trialBasicAttack(active);
+    const attacks = trialActiveAttacks(active);
     const skill = trialSupportSkill(duel.player);
     const support = duel.player.support;
     const healing = support && seasonCardsById.get(support.id).number === '015';
@@ -183,13 +183,15 @@ function renderStartedTrialDuel(duel) {
       `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
         ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
     ).join(' ') : '';
-    controls = `${supportControls} ${attack ? `<button data-duel-action="attack" ${active.acted || active.energy < attack.cost ? 'disabled' : ''}>
-      ${attack.ability} · ${attack.cost} energía · ${attack.damage + (duel.rival.active || duel.rival.support ? duel.player.bonus : 0)} daño</button>` : ''}
-      <button data-duel-action="end">Terminar turno</button>`;
+    const attackControls = attacks.map((attack, index) =>
+      `<button data-duel-action="attack" data-duel-attack="${index}" ${active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : ''}>
+        ${attack.ability} · ${attack.cost} energía · ${duel.rival.active || duel.rival.support ? `${attack.damage + duel.player.bonus} daño` : '1 vida'}${attack.exhausts ? ' · Agota' : ''}</button>`
+    ).join(' ');
+    controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-    <p>Prueba local con ataques básicos y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
+    <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
     <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
     <div class="products">${sides}</div>
     <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>
@@ -345,7 +347,7 @@ main.addEventListener('click', event => {
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place-support': placeTrialSupport(trialDuel, Number(button.dataset.duelReplace)); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
-      case 'attack': attackTrialDuel(trialDuel); break;
+      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
       case 'end':
         endTrialTurn(trialDuel);
         playTrialRival(trialDuel);
