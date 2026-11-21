@@ -199,8 +199,9 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '005', '012', '015', '018', '019', '022', '024'].includes(species)) return null;
+  if (!['002', '004', '005', '012', '015', '018', '019', '022', '024'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
+    species === '002' ? side.deck.length >= 2 :
     species === '022' ? active && active.hp < seasonCardsById.get(active.id).hp && !side.interposition :
     species === '018' ? side.lives < 3 && !side.germinationUsed :
     species === '024' ? active && active.hp * 2 <= seasonCardsById.get(active.id).hp :
@@ -225,6 +226,8 @@ function useTrialSupport(duel, target = 'active') {
     const maxHp = seasonCardsById.get(creature.id).hp;
     if (creature.hp >= maxHp) return false;
     creature.hp = Math.min(maxHp, creature.hp + 150);
+  } else if (card.number === '002') {
+    if (target === 'swap') [side.deck[0], side.deck[1]] = [side.deck[1], side.deck[0]];
   } else if (card.number === '022') {
     side.interposition = true;
   } else if (card.number === '018') {

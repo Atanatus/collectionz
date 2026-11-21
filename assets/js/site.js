@@ -143,6 +143,30 @@ function updateDeckStatus(form) {
 let preparedTrialOpening = null;
 let trialDuel = null;
 
+function showDuelWave() {
+  if (!useTrialSupport(trialDuel)) return;
+  const duel = trialDuel;
+  const dialog = document.querySelector('#duel-wave');
+  const cards = duel.player.deck.slice(0, 2).map(id => {
+    const card = seasonCardsById.get(id);
+    const item = document.createElement('li');
+    item.textContent = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    return item;
+  });
+  dialog.querySelector('#duel-wave-cards').replaceChildren(...cards);
+  dialog.returnValue = 'keep';
+  dialog.addEventListener('close', () => {
+    const deck = duel.player.deck;
+    if (dialog.returnValue === 'swap') [deck[0], deck[1]] = [deck[1], deck[0]];
+    if (location.hash === '#duelo/partida' && duel === trialDuel) {
+      render();
+      main.querySelector('[data-duel-action="end"]')?.focus({ preventScroll: true });
+    }
+  }, { once: true });
+  render();
+  dialog.showModal();
+}
+
 function showDuelDiscard(sideKey) {
   if (!trialDuel || !['player', 'rival'].includes(sideKey)) return;
   const discarded = trialDuel[sideKey].discarded;
@@ -399,6 +423,8 @@ function render() {
     if (resultDialog.open) resultDialog.close();
     const discardDialog = document.querySelector('#duel-discard');
     if (discardDialog.open) discardDialog.close();
+    const waveDialog = document.querySelector('#duel-wave');
+    if (waveDialog.open) waveDialog.close('keep');
   }
   for (const link of document.querySelectorAll('.site-sidebar a, .player-panel a')) {
     if (link.hash === current) link.setAttribute('aria-current', 'page');
@@ -475,7 +501,12 @@ main.addEventListener('click', event => {
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'hybrid': moveTrialHybrid(trialDuel); break;
       case 'guard': useTrialDefense(trialDuel, button.dataset.duelSlot); break;
-      case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
+      case 'support':
+        if (trialDuel.player.support?.id === 'accretion-002-base') {
+          showDuelWave();
+          return;
+        }
+        useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':
         endTrialTurn(trialDuel);
