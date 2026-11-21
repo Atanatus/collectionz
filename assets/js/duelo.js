@@ -136,9 +136,10 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '015', '019'].includes(species)) return null;
+  if (!['004', '012', '015', '019'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
     species === '004' ? active && active.energy < 10 :
+    species === '012' ? active && (active.exhausted || active.movementLocked) :
     species === '015' ? (active && active.hp < seasonCardsById.get(active.id).hp) || support.hp < card.hp :
     active && !active.acted && !side.bonus
   );
@@ -157,6 +158,11 @@ function useTrialSupport(duel, target = 'active') {
     const maxHp = seasonCardsById.get(creature.id).hp;
     if (creature.hp >= maxHp) return false;
     creature.hp = Math.min(maxHp, creature.hp + 150);
+  } else if (card.number === '012') {
+    if (target === 'exhaustion' && active.exhausted) active.exhausted = 0;
+    else if (target === 'movement' && active.movementLocked) active.movementLocked = false;
+    else return false;
+    support.exhausted = 2;
   } else if (card.number === '004') {
     active.energy = Math.min(10, active.energy + 2);
   } else {
@@ -272,7 +278,11 @@ function playTrialRival(duel) {
   const supportIndex = duel.rival.hand.findIndex((_, position) => !duel.rival.support && canPlaceTrialCreature(duel, 'support', position));
   if (supportIndex >= 0) placeTrialCreature(duel, 'support', supportIndex);
   advanceTrialEnergy(duel);
-  if (!useTrialSupport(duel)) useTrialSupport(duel, 'support');
+  if (duel.rival.support && seasonCardsById.get(duel.rival.support.id).number === '012') {
+    useTrialSupport(duel, 'exhaustion');
+  } else if (!useTrialSupport(duel)) {
+    useTrialSupport(duel, 'support');
+  }
   if (!attackTrialDuel(duel, 1)) attackTrialDuel(duel);
   endTrialTurn(duel);
 }

@@ -176,14 +176,20 @@ function renderStartedTrialDuel(duel) {
     const attacks = trialActiveAttacks(active);
     const skill = trialSupportSkill(duel.player);
     const support = duel.player.support;
-    const healing = support && seasonCardsById.get(support.id).number === '015';
+    const supportSpecies = support && seasonCardsById.get(support.id).number;
+    const healing = supportSpecies === '015';
+    const liberation = supportSpecies === '012';
     const targets = healing ? ['active', 'support'].filter(slot => {
       const creature = duel.player[slot];
       return creature && creature.hp < seasonCardsById.get(creature.id).hp;
-    }) : ['active'];
+    }) : liberation ? [
+      ...(active?.exhausted ? ['exhaustion'] : []),
+      ...(active?.movementLocked ? ['movement'] : [])
+    ] : ['active'];
+    const supportLabels = { exhaustion: 'Quitar agotamiento', movement: 'Quitar bloqueo de movimiento' };
     const supportControls = skill ? targets.map(slot =>
       `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
-        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
+        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : liberation ? ` · ${supportLabels[slot]}` : ''} · ${skill.cost} energía</button>`
     ).join(' ') : '';
     const { active: enemyActive, support: enemySupport } = duel.rival;
     const bothOccupied = Boolean(enemyActive && enemySupport);
