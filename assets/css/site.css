@@ -199,3 +199,9 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 .battle-controls button[data-duel-action="end"] { background: var(--ink); color: var(--paper); }
 
 .battle-hand-empty { list-style: none; background: #f5eefb; border-color: #846d97; }
+
+.duel-in-progress > header { padding-block: .35rem; }
+.duel-in-progress > header .brand { font-size: 1.45rem; }
+#duel-result { width: min(28rem, calc(100% - 2rem)); border: var(--line); background: var(--paper); color: var(--ink); }
+#duel-result::backdrop { background: #170c31bb; }
+#duel-result form { margin-top: 1rem; }

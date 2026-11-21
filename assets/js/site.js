@@ -143,6 +143,21 @@ function updateDeckStatus(form) {
 let preparedTrialOpening = null;
 let trialDuel = null;
 
+let shownDuelResult = null;
+
+function showDuelResult() {
+  const dialog = document.querySelector('#duel-result');
+  if (!trialDuel?.result || dialog.open) return;
+  const titles = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
+  dialog.querySelector('#duel-result-title').textContent = titles[trialDuel.result];
+  dialog.querySelector('#duel-result-turn').textContent = `Turno ${trialDuel.round}`;
+  const move = dialog.querySelector('#duel-result-move');
+  move.hidden = !trialDuel.message;
+  move.textContent = trialDuel.message;
+  shownDuelResult = trialDuel;
+  dialog.showModal();
+}
+
 function renderTrialDuelCard(id) {
   const card = seasonCardsById.get(id);
   const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
@@ -247,12 +262,10 @@ function renderStartedTrialDuel(duel) {
     const label = hybridMove === 'swap' ? 'Intercambiar Híbridas' : 'Subir Apoyo a Activa';
     controls = `<button type="button" data-duel-action="hybrid">${label}</button> ${controls}`;
   }
-  const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<div class="battle-screen">
     <div class="battle-heading">
-      <h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-      ${duel.result ? '' : `<p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>`}
-      <a href="#duelo/preparar">${duel.result ? 'Preparar otra partida' : 'Volver a preparar'}</a>
+      <h1 tabindex="-1">${duel.result ? 'Duelo terminado' : `Turno ${duel.round} · ${ownTurn ? 'Tu turno' : 'Turno del rival'}`}</h1>
+      ${duel.result ? '<button id="ver-resultado-duelo" type="button">Ver resultado</button>' : '<a href="#duelo/preparar">Volver a preparar</a>'}
     </div>
     <div class="battle-board">${sides}</div>
     <div class="battle-console">
@@ -261,7 +274,7 @@ function renderStartedTrialDuel(duel) {
       </section>
       <div class="battle-controls">
         ${controls ? `<div class="actions">${controls}</div>` : ''}
-        <p role="status">${duel.message}</p>
+        ${duel.result ? '' : `<p role="status">${duel.message}</p>`}
       </div>
     </div>
   </div>`;
@@ -347,7 +360,10 @@ function render() {
   const section = sections.includes(requested) ? requested : 'inicio';
   const current = section === 'perfil' && ['mazo', 'mis-sobres'].includes(view)
     ? `#perfil/${view}` : `#${section}`;
-  document.body.classList.toggle('duel-in-progress', section === 'duelo' && view === 'partida' && Boolean(trialDuel));
+  const inBattle = section === 'duelo' && view === 'partida' && Boolean(trialDuel);
+  document.body.classList.toggle('duel-in-progress', inBattle);
+  const resultDialog = document.querySelector('#duel-result');
+  if (!inBattle && resultDialog.open) resultDialog.close();
   for (const link of document.querySelectorAll('.site-sidebar a, .player-panel a')) {
     if (link.hash === current) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -366,6 +382,7 @@ function render() {
       break;
     case 'duelo':
       main.innerHTML = renderTrialDuel(view);
+      if (inBattle && trialDuel.result && shownDuelResult !== trialDuel) showDuelResult();
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
@@ -401,7 +418,9 @@ function render() {
 main.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  if (button.id === 'preparar-duelo') {
+  if (button.id === 'ver-resultado-duelo') {
+    showDuelResult();
+  } else if (button.id === 'preparar-duelo') {
     showTrialOpening();
   } else if (button.id === 'comenzar-duelo' && preparedTrialOpening) {
     trialDuel = startTrialDuel(preparedTrialOpening);
@@ -425,6 +444,7 @@ main.addEventListener('click', event => {
     }
     const action = button.dataset.duelAction;
     render();
+    if (document.querySelector('#duel-result').open) return;
     const enabledActions = [...main.querySelectorAll('button[data-duel-action]:not(:disabled)')];
     const next = enabledActions.find(control => control.dataset.duelAction === action &&
       control.dataset.duelAttack === button.dataset.duelAttack &&
@@ -510,10 +530,13 @@ addEventListener('storage', event => {
   if (event.key === trialInventoryKey &&
       (location.hash.startsWith('#albumes') || location.hash === '#perfil/inventario')) render();
 });
+document.querySelector('#duel-result').addEventListener('close', () => {
+  main.querySelector('#ver-resultado-duelo')?.focus({ preventScroll: true });
+});
 addEventListener('hashchange', () => {
   render();
   const heading = main.querySelector('h1');
-  if (heading) {
+  if (heading && !document.querySelector('#duel-result').open) {
     heading.tabIndex = -1;
     heading.focus({ preventScroll: true });
   }
