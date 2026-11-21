@@ -107,6 +107,28 @@ function placeTrialCreature(duel, slot, index) {
   return true;
 }
 
+function trialHybridMove(duel) {
+  if (duel.result || !['replacement', 'actions'].includes(duel.phase)) return null;
+  const { active, support } = duel[duel.turn];
+  if (!support || seasonCardsById.get(support.id).role !== 'Híbrida') return null;
+  if (!active) return duel.phase === 'replacement' ? 'promote' : null;
+  if (seasonCardsById.get(active.id).role !== 'Híbrida' || active.acted || active.exhausted || support.exhausted) return null;
+  return 'swap';
+}
+
+function moveTrialHybrid(duel) {
+  const move = trialHybridMove(duel);
+  if (!move) return false;
+  const side = duel[duel.turn];
+  const { active, support } = side;
+  if (active) active.acted = true;
+  side.active = support;
+  side.support = active;
+  if (move === 'promote') side.supportLost = false;
+  duel.message = move === 'swap' ? 'Híbridas intercambiadas' : 'Híbrida ascendida a Activa';
+  return true;
+}
+
 function trialSupportSkill(side) {
   const support = side.support;
   const active = side.active;
@@ -223,6 +245,7 @@ function endTrialTurn(duel) {
 function playTrialRival(duel) {
   if (duel.result || duel.turn !== 'rival') return;
   resolveTrialDraw(duel, true);
+  if (trialHybridMove(duel) === 'promote') moveTrialHybrid(duel);
   const index = duel.rival.hand.findIndex((_, position) => !duel.rival.active && canPlaceTrialCreature(duel, 'active', position));
   if (index >= 0) placeTrialCreature(duel, 'active', index);
   const supportIndex = duel.rival.hand.findIndex((_, position) => !duel.rival.support && canPlaceTrialCreature(duel, 'support', position));

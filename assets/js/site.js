@@ -191,6 +191,11 @@ function renderStartedTrialDuel(duel) {
     ).join(' ');
     controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
+  const hybridMove = ownTurn ? trialHybridMove(duel) : null;
+  if (hybridMove) {
+    const label = hybridMove === 'swap' ? 'Intercambiar Híbridas' : 'Subir Apoyo a Activa';
+    controls = `<button type="button" data-duel-action="hybrid">${label}</button> ${controls}`;
+  }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
     <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
@@ -348,6 +353,7 @@ main.addEventListener('click', event => {
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
+      case 'hybrid': moveTrialHybrid(trialDuel); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
       case 'end':
