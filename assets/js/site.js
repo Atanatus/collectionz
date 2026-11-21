@@ -191,6 +191,7 @@ function renderBattleCard(creature) {
       <meter min="0" max="${card.hp}" value="${creature.hp}" aria-label="Puntos de vida de ${name}"></meter>
       <span>${creature.hp}/${card.hp} PV · ${creature.energy} E</span>
       ${creature.exhausted ? '<span>Agotada</span>' : ''}
+      ${creature.guard ? `<span>Protección · ${creature.guard}</span>` : ''}
       ${creature.movementLocked ? '<span>Movimiento bloqueado</span>' : ''}
     </span>`;
 }
@@ -272,7 +273,12 @@ function renderStartedTrialDuel(duel) {
       return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
         ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
     }).join(' ');
-    controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+    const guardControls = ['active', 'support'].map(slot => {
+      const guard = trialGuardSkill(duel.player, slot);
+      return guard ? `<button data-duel-action="guard" data-duel-slot="${slot}" ${canUseTrialGuard(duel, slot) ? '' : 'disabled'}>
+        ${guard.ability} · ${guard.cost} energía · Bloquea hasta ${guard.reduction}</button>` : '';
+    }).join(' ');
+    controls = `${supportControls} ${guardControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
   const hybridMove = ownTurn ? trialHybridMove(duel) : null;
   if (hybridMove) {
@@ -458,6 +464,7 @@ main.addEventListener('click', event => {
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'hybrid': moveTrialHybrid(trialDuel); break;
+      case 'guard': useTrialGuard(trialDuel, button.dataset.duelSlot); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':
