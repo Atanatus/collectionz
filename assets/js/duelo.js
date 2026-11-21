@@ -129,6 +129,29 @@ function moveTrialHybrid(duel) {
   return true;
 }
 
+function canUseTrialReturn(duel) {
+  const side = duel[duel.turn];
+  const support = side.support;
+  return !duel.result && duel.phase === 'actions' && support?.id === 'accretion-021-base' &&
+    !support.acted && !support.exhausted && side.hand.length < 6 && side.discarded.length > 0;
+}
+
+function useTrialReturn(duel, index) {
+  const side = duel[duel.turn];
+  if (!canUseTrialReturn(duel) || !Number.isInteger(index) || index < 0 || index >= side.discarded.length) return false;
+
+  side.support.acted = true;
+  side.lives -= 1;
+  duel.message = 'Hebra de retorno';
+  if (side.lives === 0) {
+    duel.result = duel.turn === 'player' ? 'rival' : 'player';
+    return true;
+  }
+  const [id] = side.discarded.splice(index, 1);
+  side.hand.push(createTrialActive(id));
+  return true;
+}
+
 function trialDefenseSkill(side, slot) {
   const creature = side[slot];
   if (!creature) return null;

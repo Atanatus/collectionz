@@ -280,6 +280,15 @@ function renderStartedTrialDuel(duel) {
     }).join(' ');
     controls = `${supportControls} ${defenseControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
+  if (ownTurn && canUseTrialReturn(duel)) {
+    const options = duel.player.discarded.map((id, index) => {
+      const card = seasonCardsById.get(id);
+      return `<option value="${index}">${card.species}${card.variant ? ` · ${card.variant}` : ''}</option>`;
+    }).join('');
+    const cost = duel.player.lives === 1 ? '1 vida · Pierdes la partida' : '1 vida';
+    controls = `<label>Recuperar a la mano <select id="duel-return-target">${options}</select></label>
+      <button type="button" data-duel-action="return">Hebra de retorno · ${cost}</button> ${controls}`;
+  }
   const hybridMove = ownTurn ? trialHybridMove(duel) : null;
   if (hybridMove) {
     const label = hybridMove === 'swap' ? 'Intercambiar Híbridas' : 'Subir Apoyo a Activa';
@@ -459,6 +468,7 @@ main.addEventListener('click', event => {
     location.hash = 'duelo/partida';
   } else if (trialDuel?.turn === 'player' && (button.dataset.duelAction || button.dataset.duelReplace !== undefined)) {
     switch (button.dataset.duelAction) {
+      case 'return': useTrialReturn(trialDuel, Number(main.querySelector('#duel-return-target')?.value)); break;
       case 'draw': resolveTrialDraw(trialDuel, true); break;
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
