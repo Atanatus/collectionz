@@ -150,15 +150,37 @@ function renderTrialDuelCard(id) {
 }
 
 function renderStartedTrialDuel(duel) {
-  const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) =>
-    `<section><h2>${label}</h2><p>3 vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
-      <p>Activa: ${renderTrialDuelCard(side.activeId)}</p>
-      <p>Apoyo vacío · Eliminadas 0</p></section>`).join('');
-  return `<h1 tabindex="-1">Duelo en curso</h1>
-    <p>Turno 1 · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
+  const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) => {
+    const active = side.active;
+    return `<section><h2>${label}</h2><p>${side.lives} vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
+      <p>Activa: ${active ? `${renderTrialDuelCard(active.id)} · ${active.hp} PV · ${active.energy} energía` : 'Vacía'}</p>
+      <p>Eliminadas: ${side.discarded.map(renderTrialDuelCard).join(' ') || '0'}</p></section>`;
+  }).join('');
+  const ownTurn = duel.turn === 'player' && !duel.result;
+  const hand = duel.player.hand.map((id, index) => {
+    const replacement = ownTurn && duel.phase === 'replacement' && canReplaceTrialActive(duel.player, index);
+    return `${renderTrialDuelCard(id)} ${replacement ? `<button type="button" data-duel-replace="${index}">Reponer Activa</button>` : ''}`;
+  }).join(' ');
+  let controls = '';
+  if (ownTurn && duel.phase === 'draw') {
+    controls = '<button data-duel-action="draw">Robar</button> <button data-duel-action="skip">Omitir robo</button>';
+  } else if (ownTurn && duel.phase === 'replacement') {
+    controls = '<button data-duel-action="energy">Ir a acciones</button>';
+  } else if (ownTurn && duel.phase === 'actions') {
+    const active = duel.player.active;
+    const attack = trialBasicAttack(active);
+    controls = `${attack ? `<button data-duel-action="attack" ${active.acted || active.energy < attack.cost ? 'disabled' : ''}>
+      ${attack.ability} · ${attack.cost} energía · ${attack.damage} daño</button>` : ''}
+      <button data-duel-action="end">Terminar turno</button>`;
+  }
+  const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
+  return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
+    <p>Prueba local con ataques básicos.</p>
+    <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
     <div class="products">${sides}</div>
-    <section><h2>Tu mano</h2><p>${duel.player.hand.map(renderTrialDuelCard).join(' ') || 'Vacía'}</p></section>
-    <p>Robo inicial resuelto. La fase de reposición y las acciones están pendientes de integración.</p>
+    <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>
+    <div class="actions">${controls}</div>
+    <p role="status">${duel.message}</p>
     <p><a href="#duelo/preparar">Preparar otra partida →</a></p>`;
 }
 
@@ -299,8 +321,22 @@ main.addEventListener('click', event => {
   } else if (button.id === 'comenzar-duelo' && preparedTrialOpening) {
     trialDuel = startTrialDuel(preparedTrialOpening);
     preparedTrialOpening = null;
+    playTrialRival(trialDuel);
     button.disabled = true;
     location.hash = 'duelo/partida';
+  } else if (trialDuel?.turn === 'player' && (button.dataset.duelAction || button.dataset.duelReplace !== undefined)) {
+    switch (button.dataset.duelAction) {
+      case 'draw': resolveTrialDraw(trialDuel, true); break;
+      case 'skip': resolveTrialDraw(trialDuel, false); break;
+      case 'energy': advanceTrialEnergy(trialDuel); break;
+      case 'attack': attackTrialDuel(trialDuel); break;
+      case 'end':
+        endTrialTurn(trialDuel);
+        playTrialRival(trialDuel);
+        break;
+      default: replaceTrialActive(trialDuel, Number(button.dataset.duelReplace));
+    }
+    render();
   } else if (button.dataset.card) {
     const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
     const dialog = document.querySelector('#detalle-carta');
