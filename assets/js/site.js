@@ -215,6 +215,8 @@ function renderBattleCard(creature) {
       <meter min="0" max="${card.hp}" value="${creature.hp}" aria-label="Puntos de vida de ${name}"></meter>
       <span>${creature.hp}/${card.hp} PV · ${creature.energy} E</span>
       ${creature.exhausted ? '<span>Agotada</span>' : ''}
+      ${creature.suspension ? '<span>Caída suspendida</span>' : ''}
+      ${creature.deferredDamage ? `<span>${creature.deferredDamage} de daño pendiente</span>` : ''}
       ${creature.guard ? `<span>Protección · ${creature.guard}</span>` : ''}
       ${creature.movementLocked ? '<span>Movimiento bloqueado</span>' : ''}
     </span>`;
