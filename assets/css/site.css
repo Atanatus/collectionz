@@ -197,3 +197,5 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 .battle-controls button[data-duel-action="attack"] small { display: block; font-weight: 600; }
 .battle-controls button[data-duel-action="attack"]:disabled { background: #eee7f4; opacity: 1; }
 .battle-controls button[data-duel-action="end"] { background: var(--ink); color: var(--paper); }
+
+.battle-hand-empty { list-style: none; background: #f5eefb; border-color: #846d97; }

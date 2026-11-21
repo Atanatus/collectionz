@@ -197,6 +197,8 @@ function renderStartedTrialDuel(duel) {
     }).join(' ') : '';
     return `<li class="battle-slot">${renderBattleCard(creature)}${buttons}</li>`;
   }).join(' ');
+  const emptyHandSlots = '<li class="battle-empty battle-hand-empty" aria-hidden="true"></li>'
+    .repeat(Math.max(0, 6 - duel.player.hand.length));
   let controls = '';
   if (ownTurn && duel.phase === 'draw') {
     controls = '<button data-duel-action="draw">Robar</button> <button data-duel-action="skip">Omitir robo</button>';
@@ -255,7 +257,7 @@ function renderStartedTrialDuel(duel) {
     <div class="battle-board">${sides}</div>
     <div class="battle-console">
       <section class="battle-hand"><h2>Tu mano · ${duel.player.hand.length}/6</h2>
-        ${hand ? `<ul>${hand}</ul>` : '<p>Vacía</p>'}
+        <ul>${hand}${emptyHandSlots}</ul>
       </section>
       <div class="battle-controls">
         ${controls ? `<div class="actions">${controls}</div>` : ''}
