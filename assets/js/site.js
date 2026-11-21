@@ -143,6 +143,28 @@ function updateDeckStatus(form) {
 let preparedTrialOpening = null;
 let trialDuel = null;
 
+function showDuelDiscard(sideKey) {
+  if (!trialDuel || !['player', 'rival'].includes(sideKey)) return;
+  const discarded = trialDuel[sideKey].discarded;
+  const dialog = document.querySelector('#duel-discard');
+  if (!discarded.length || dialog.open) return;
+
+  dialog.querySelector('#duel-discard-title').textContent = sideKey === 'rival' ? 'Eliminadas del rival' : 'Tus eliminadas';
+  dialog.querySelector('#duel-discard-cards').replaceChildren(...discarded.map(id => {
+    const card = seasonCardsById.get(id);
+    const item = document.createElement('li');
+    const image = document.createElement('img');
+    image.src = cardImagePath(card);
+    image.alt = '';
+    image.width = 1000;
+    image.height = 1400;
+    const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    item.append(image, name);
+    return item;
+  }));
+  dialog.showModal();
+}
+
 let shownDuelResult = null;
 
 function showDuelResult() {
@@ -156,12 +178,6 @@ function showDuelResult() {
   move.textContent = trialDuel.message;
   shownDuelResult = trialDuel;
   dialog.showModal();
-}
-
-function renderTrialDuelCard(id) {
-  const card = seasonCardsById.get(id);
-  const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
-  return `<button type="button" data-card="${card.id}">${name}</button>`;
 }
 
 function renderBattleCard(creature) {
@@ -180,7 +196,8 @@ function renderBattleCard(creature) {
 }
 
 function renderStartedTrialDuel(duel) {
-  const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) => {
+  const sides = [['Rival', 'rival'], ['Tú', 'player']].map(([label, sideKey]) => {
+    const side = duel[sideKey];
     const slots = [['Activa', side.active], ['Apoyo', side.support]].map(([name, creature]) =>
       `<div class="battle-slot"><strong>${name}</strong>
         ${creature ? renderBattleCard(creature) : '<div class="battle-empty" aria-label="Puesto vacío">Vacío</div>'}</div>`
@@ -197,9 +214,9 @@ function renderStartedTrialDuel(duel) {
       <div class="battle-zones">
         <div class="battle-slot"><strong>Mazo · ${side.deck.length}</strong>${deck}</div>
         ${slots}
-        <details class="battle-discard"><summary>Eliminadas · ${side.discarded.length}</summary>
-          <div>${side.discarded.map(renderTrialDuelCard).join(' ') || 'Vacío'}</div>
-        </details>
+        <button type="button" class="battle-discard" data-duel-discard="${sideKey}"
+          aria-haspopup="dialog" aria-label="Eliminadas de ${sideKey === 'rival' ? 'tu rival' : 'tu lado'} · ${side.discarded.length}"
+          ${side.discarded.length ? '' : 'disabled'}>Eliminadas · ${side.discarded.length}</button>
       </div>
     </section>`;
   }).join('');
@@ -363,7 +380,11 @@ function render() {
   const inBattle = section === 'duelo' && view === 'partida' && Boolean(trialDuel);
   document.body.classList.toggle('duel-in-progress', inBattle);
   const resultDialog = document.querySelector('#duel-result');
-  if (!inBattle && resultDialog.open) resultDialog.close();
+  if (!inBattle) {
+    if (resultDialog.open) resultDialog.close();
+    const discardDialog = document.querySelector('#duel-discard');
+    if (discardDialog.open) discardDialog.close();
+  }
   for (const link of document.querySelectorAll('.site-sidebar a, .player-panel a')) {
     if (link.hash === current) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -418,7 +439,9 @@ function render() {
 main.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  if (button.id === 'ver-resultado-duelo') {
+  if (button.dataset.duelDiscard) {
+    showDuelDiscard(button.dataset.duelDiscard);
+  } else if (button.id === 'ver-resultado-duelo') {
     showDuelResult();
   } else if (button.id === 'preparar-duelo') {
     showTrialOpening();
