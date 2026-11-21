@@ -155,7 +155,13 @@ function renderBattleCard(creature) {
   return `<button type="button" class="battle-card" data-card="${card.id}" aria-label="Ver carta de ${name}">
       <img src="${cardImagePath(card)}" alt="" width="1000" height="1400">
     </button>
-    <span class="battle-stats">${creature.hp} PV · ${creature.energy} E${creature.exhausted ? ' · Agotada' : ''}</span>`;
+    <span class="battle-stats">
+      <strong>${name}</strong>
+      <meter min="0" max="${card.hp}" value="${creature.hp}" aria-label="Puntos de vida de ${name}"></meter>
+      <span>${creature.hp}/${card.hp} PV · ${creature.energy} E</span>
+      ${creature.exhausted ? '<span>Agotada</span>' : ''}
+      ${creature.movementLocked ? '<span>Movimiento bloqueado</span>' : ''}
+    </span>`;
 }
 
 function renderStartedTrialDuel(duel) {
@@ -167,8 +173,12 @@ function renderStartedTrialDuel(duel) {
     const deck = side.deck.length
       ? '<img src="assets/cartas/temporada-1/reverso.png" alt="" width="1000" height="1400">'
       : '<div class="battle-empty">Vacío</div>';
+    const lives = Array.from({ length: 3 }, (_, index) =>
+      `<span class="battle-life${index < side.lives ? ' is-live' : ''}"></span>`
+    ).join('');
     return `<section class="battle-side" aria-label="${label}">
-      <h2>${label} <small>${side.lives} vidas · Mano ${side.hand.length}</small></h2>
+      <h2>${label} <span class="battle-lives" role="img" aria-label="${side.lives} de 3 vidas">${lives}</span>
+        <small>Mano ${side.hand.length}</small></h2>
       <div class="battle-zones">
         <div class="battle-slot"><strong>Mazo · ${side.deck.length}</strong>${deck}</div>
         ${slots}
@@ -187,6 +197,8 @@ function renderStartedTrialDuel(duel) {
     }).join(' ') : '';
     return `<li class="battle-slot">${renderBattleCard(creature)}${buttons}</li>`;
   }).join(' ');
+  const emptyHandSlots = '<li class="battle-empty battle-hand-empty" aria-hidden="true"></li>'
+    .repeat(Math.max(0, 6 - duel.player.hand.length));
   let controls = '';
   if (ownTurn && duel.phase === 'draw') {
     controls = '<button data-duel-action="draw">Robar</button> <button data-duel-action="skip">Omitir robo</button>';
@@ -197,30 +209,62 @@ function renderStartedTrialDuel(duel) {
     const attacks = trialActiveAttacks(active);
     const skill = trialSupportSkill(duel.player);
     const support = duel.player.support;
-    const healing = support && seasonCardsById.get(support.id).number === '015';
+    const supportSpecies = support && seasonCardsById.get(support.id).number;
+    const healing = supportSpecies === '015';
+    const liberation = supportSpecies === '012';
     const targets = healing ? ['active', 'support'].filter(slot => {
       const creature = duel.player[slot];
       return creature && creature.hp < seasonCardsById.get(creature.id).hp;
-    }) : ['active'];
+    }) : liberation ? [
+      ...(active?.exhausted ? ['exhaustion'] : []),
+      ...(active?.movementLocked ? ['movement'] : [])
+    ] : ['active'];
+    const supportLabels = { exhaustion: 'Quitar agotamiento', movement: 'Quitar bloqueo de movimiento' };
     const supportControls = skill ? targets.map(slot =>
       `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
-        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
+        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : liberation ? ` · ${supportLabels[slot]}` : ''} · ${skill.cost} energía</button>`
     ).join(' ') : '';
-    const attackControls = attacks.map((attack, index) =>
-      `<button data-duel-action="attack" data-duel-attack="${index}" ${active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : ''}>
-        ${attack.ability} · ${attack.cost} energía · ${duel.rival.active || duel.rival.support ? `${attack.damage + duel.player.bonus} daño` : '1 vida'}${attack.exhausts ? ' · Agota' : ''}</button>`
-    ).join(' ');
+    const { active: enemyActive, support: enemySupport } = duel.rival;
+    const bothOccupied = Boolean(enemyActive && enemySupport);
+    const attackControls = attacks.map((attack, index) => {
+      const unavailable = active.acted ? 'Ya actuó' : active.exhausted ? 'Agotada'
+        : active.energy < attack.cost ? `Falta energía · ${active.energy}/${attack.cost}` : '';
+      const disabled = unavailable ? 'disabled' : '';
+      const reason = unavailable ? `<small>${unavailable}</small>` : '';
+      const bonus = duel.player.bonus;
+      const damage = enemyActive || enemySupport ? `${attack.damage + bonus} daño` : '1 vida';
+      const splash = bothOccupied && attack.splashDamage ? ` + ${attack.splashDamage} al Apoyo` : '';
+      const attackSupport = bothOccupied && attack.supportTargetDamage
+        ? `<button data-duel-action="attack" data-duel-attack="${index}" data-duel-target="support" ${disabled}>
+          ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño${reason}</button>` : '';
+      return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
+        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
+    }).join(' ');
     controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
+  const hybridMove = ownTurn ? trialHybridMove(duel) : null;
+  if (hybridMove) {
+    const label = hybridMove === 'swap' ? 'Intercambiar Híbridas' : 'Subir Apoyo a Activa';
+    controls = `<button type="button" data-duel-action="hybrid">${label}</button> ${controls}`;
+  }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
-  return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-    <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
-    <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
+  return `<div class="battle-screen">
+    <div class="battle-heading">
+      <h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
+      ${duel.result ? '' : `<p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>`}
+      <a href="#duelo/preparar">${duel.result ? 'Preparar otra partida' : 'Volver a preparar'}</a>
+    </div>
     <div class="battle-board">${sides}</div>
-    <section class="battle-hand"><h2>Tu mano</h2>${hand ? `<ul>${hand}</ul>` : '<p>Vacía</p>'}</section>
-    <div class="actions">${controls}</div>
-    <p role="status">${duel.message}</p>
-    <p><a href="#duelo/preparar">Preparar otra partida →</a></p>`;
+    <div class="battle-console">
+      <section class="battle-hand"><h2>Tu mano · ${duel.player.hand.length}/6</h2>
+        <ul>${hand}${emptyHandSlots}</ul>
+      </section>
+      <div class="battle-controls">
+        ${controls ? `<div class="actions">${controls}</div>` : ''}
+        <p role="status">${duel.message}</p>
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderTrialDuel(view) {
@@ -322,7 +366,6 @@ function render() {
       break;
     case 'duelo':
       main.innerHTML = renderTrialDuel(view);
-      if (view === 'partida' && trialDuel) main.querySelector('h1').focus();
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
@@ -372,14 +415,26 @@ main.addEventListener('click', event => {
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
+      case 'hybrid': moveTrialHybrid(trialDuel); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
-      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
+      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':
         endTrialTurn(trialDuel);
         playTrialRival(trialDuel);
         break;
     }
+    const action = button.dataset.duelAction;
     render();
+    const enabledActions = [...main.querySelectorAll('button[data-duel-action]:not(:disabled)')];
+    const next = enabledActions.find(control => control.dataset.duelAction === action &&
+      control.dataset.duelAttack === button.dataset.duelAttack &&
+      control.dataset.duelTarget === button.dataset.duelTarget &&
+      control.dataset.duelSlot === button.dataset.duelSlot &&
+      control.dataset.duelReplace === button.dataset.duelReplace)
+      ?? enabledActions.find(control => !control.closest('.battle-hand'))
+      ?? enabledActions[0]
+      ?? main.querySelector('h1');
+    next?.focus({ preventScroll: true });
   } else if (button.dataset.card) {
     const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
     const dialog = document.querySelector('#detalle-carta');

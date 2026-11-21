@@ -28,7 +28,7 @@ function prepareTrialOpening(selection, random = Math.random) {
 }
 
 function createTrialActive(id) {
-  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, hitLastTurn: false };
+  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, movementLocked: false, hitLastTurn: false };
 }
 
 function startTrialDuel(opening) {
@@ -54,8 +54,8 @@ function beginTrialTurn(duel) {
   side.placed.support = false;
   const key = JSON.stringify([duel.turn, duel.player, duel.rival], (name, value) => {
     if (name === 'acted' || name === 'replaced' || name === 'placed') return undefined;
-    if (name === 'hand') return value.map(({ id, hp, energy, exhausted, hitLastTurn }) =>
-      [id, hp, energy, exhausted, hitLastTurn]).sort((left, right) =>
+    if (name === 'hand') return value.map(({ id, hp, energy, exhausted, movementLocked, hitLastTurn }) =>
+      [id, hp, energy, exhausted, movementLocked, hitLastTurn]).sort((left, right) =>
       JSON.stringify(left).localeCompare(JSON.stringify(right)));
     return name === 'discarded' ? [...value].sort() : value;
   });
@@ -87,7 +87,7 @@ function canPlaceTrialCreature(duel, slot, index) {
   if (duel.result || !['replacement', 'actions'].includes(duel.phase) || !creature || side.placed[slot]) return false;
   const role = seasonCardsById.get(creature.id).role;
   if (slot === 'active' ? role === 'Apoyo' : role === 'Activa') return false;
-  if (outgoing) return !outgoing.acted && !outgoing.exhausted;
+  if (outgoing) return !outgoing.acted && !outgoing.exhausted && !outgoing.movementLocked;
   const free = slot === 'active' || side.supportLost;
   return !free || duel.phase === 'replacement';
 }
@@ -107,6 +107,28 @@ function placeTrialCreature(duel, slot, index) {
   return true;
 }
 
+function trialHybridMove(duel) {
+  if (duel.result || !['replacement', 'actions'].includes(duel.phase)) return null;
+  const { active, support } = duel[duel.turn];
+  if (!support || seasonCardsById.get(support.id).role !== 'Híbrida') return null;
+  if (!active) return duel.phase === 'replacement' ? 'promote' : null;
+  if (seasonCardsById.get(active.id).role !== 'Híbrida' || active.acted || active.exhausted || active.movementLocked || support.exhausted || support.movementLocked) return null;
+  return 'swap';
+}
+
+function moveTrialHybrid(duel) {
+  const move = trialHybridMove(duel);
+  if (!move) return false;
+  const side = duel[duel.turn];
+  const { active, support } = side;
+  if (active) active.acted = true;
+  side.active = support;
+  side.support = active;
+  if (move === 'promote') side.supportLost = false;
+  duel.message = move === 'swap' ? 'Híbridas intercambiadas' : 'Híbrida ascendida a Activa';
+  return true;
+}
+
 function trialSupportSkill(side) {
   const support = side.support;
   const active = side.active;
@@ -114,9 +136,10 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '015', '019'].includes(species)) return null;
+  if (!['004', '012', '015', '019'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
     species === '004' ? active && active.energy < 10 :
+    species === '012' ? active && (active.exhausted || active.movementLocked) :
     species === '015' ? (active && active.hp < seasonCardsById.get(active.id).hp) || support.hp < card.hp :
     active && !active.acted && !side.bonus
   );
@@ -135,6 +158,11 @@ function useTrialSupport(duel, target = 'active') {
     const maxHp = seasonCardsById.get(creature.id).hp;
     if (creature.hp >= maxHp) return false;
     creature.hp = Math.min(maxHp, creature.hp + 150);
+  } else if (card.number === '012') {
+    if (target === 'exhaustion' && active.exhausted) active.exhausted = 0;
+    else if (target === 'movement' && active.movementLocked) active.movementLocked = false;
+    else return false;
+    support.exhausted = 2;
   } else if (card.number === '004') {
     active.energy = Math.min(10, active.energy + 2);
   } else {
@@ -168,38 +196,58 @@ function trialActiveAttacks(active) {
   const basic = trialBasicAttack(active);
   if (!basic) return [];
   const card = seasonCardsById.get(active.id);
-  if (card.number !== '001') return [basic];
   const special = card.skills[1];
+  if (card.number === '006') return [basic, { ...special, damage: 350, supportTargetDamage: 250 }];
+  if (card.number === '007') return [basic, { ...special, damage: 225, splashDamage: 125 }];
+  if (['017', '020'].includes(card.number)) return [basic, { ...special, exhausts: true }];
+  if (card.number === '008') return [basic, { ...special, locksActive: true }];
+  if (card.number !== '001') return [basic];
   return [basic, { ...special,
     damage: special.damage ?? (active.hitLastTurn ? (card.variant ? 300 : 250) : 180),
     exhausts: card.variant === 'Contención'
   }];
 }
 
-function attackTrialDuel(duel, index = 0) {
+function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   const active = duel[duel.turn].active;
   const skill = trialActiveAttacks(active)[index];
   if (duel.result || duel.phase !== 'actions' || !skill || active.acted || active.exhausted || active.energy < skill.cost) return false;
   const opponent = duel.turn === 'player' ? 'rival' : 'player';
   const target = duel[opponent];
-  const slot = target.active ? 'active' : 'support';
+  const bothOccupied = Boolean(target.active && target.support);
+  if (aimAtSupport && (!bothOccupied || !skill.supportTargetDamage)) return false;
+  const slot = target.active && !aimAtSupport ? 'active' : 'support';
   const creature = target[slot];
   const side = duel[duel.turn];
-  const damage = skill.damage + side.bonus;
+  const damage = (aimAtSupport ? skill.supportTargetDamage : skill.damage) + side.bonus;
+  const splash = bothOccupied ? skill.splashDamage : 0;
   side.bonus = 0;
   active.energy -= skill.cost;
   active.acted = true;
   if (skill.exhausts) active.exhausted = 2;
   duel.message = skill.ability + (creature ? ` · ${damage} de daño` : ' · Ataque directo');
-  if (creature) {
-    creature.hitLastTurn = damage > 0;
-    creature.hp = Math.max(0, creature.hp - damage);
-    if (creature.hp > 0) return true;
-    target.discarded.push(creature.id);
-    target[slot] = null;
-    if (slot === 'support') target.supportLost = true;
+  if (splash) duel.message += ` · ${splash} al Apoyo`;
+  const hits = [[slot, damage]];
+  if (splash) hits.push(['support', splash]);
+  let lostLives = creature ? 0 : 1;
+  for (const [hitSlot, amount] of hits) {
+    const hit = target[hitSlot];
+    if (!hit) continue;
+    hit.hitLastTurn = amount > 0;
+    hit.hp = Math.max(0, hit.hp - amount);
+    if (hit.hp > 0) {
+      if (skill.locksActive && hitSlot === 'active') {
+        hit.movementLocked = true;
+        duel.message += ' · Relevo e intercambio bloqueados';
+      }
+      continue;
+    }
+    target.discarded.push(hit.id);
+    target[hitSlot] = null;
+    if (hitSlot === 'support') target.supportLost = true;
+    lostLives += 1;
   }
-  target.lives -= 1;
+  target.lives = Math.max(0, target.lives - lostLives);
   if (!target.lives) duel.result = duel.turn;
   return true;
 }
@@ -212,6 +260,7 @@ function endTrialTurn(duel) {
   for (const creature of [side.active, side.support]) {
     if (!creature) continue;
     creature.hitLastTurn = false;
+    creature.movementLocked = false;
     if (creature.exhausted) creature.exhausted -= 1;
   }
   duel.turn = duel.turn === 'player' ? 'rival' : 'player';
@@ -223,12 +272,17 @@ function endTrialTurn(duel) {
 function playTrialRival(duel) {
   if (duel.result || duel.turn !== 'rival') return;
   resolveTrialDraw(duel, true);
+  if (trialHybridMove(duel) === 'promote') moveTrialHybrid(duel);
   const index = duel.rival.hand.findIndex((_, position) => !duel.rival.active && canPlaceTrialCreature(duel, 'active', position));
   if (index >= 0) placeTrialCreature(duel, 'active', index);
   const supportIndex = duel.rival.hand.findIndex((_, position) => !duel.rival.support && canPlaceTrialCreature(duel, 'support', position));
   if (supportIndex >= 0) placeTrialCreature(duel, 'support', supportIndex);
   advanceTrialEnergy(duel);
-  if (!useTrialSupport(duel)) useTrialSupport(duel, 'support');
+  if (duel.rival.support && seasonCardsById.get(duel.rival.support.id).number === '012') {
+    useTrialSupport(duel, 'exhaustion');
+  } else if (!useTrialSupport(duel)) {
+    useTrialSupport(duel, 'support');
+  }
   if (!attackTrialDuel(duel, 1)) attackTrialDuel(duel);
   endTrialTurn(duel);
 }

@@ -16,19 +16,30 @@ nav { display: grid; gap: .55rem; }
   padding: 1rem;
 }
 .site-sidebar { grid-area: menu; }
+.site-footer { border-top: 2px solid var(--red); margin-top: 1rem; padding: .75rem 0; font-size: .8rem; }
 .nav-guide { margin-top: .6rem; }
-.player-panel { grid-area: player; display: grid; gap: .65rem; padding: .75rem; }
+.site-layout > .player-panel { grid-area: player; display: grid; gap: .65rem; padding: 0; background: transparent; border: 0; box-shadow: none; }
+.player-account { display: grid; gap: .65rem; padding: .75rem; border: var(--line); background: var(--paper); box-shadow: 4px 4px var(--ink); }
+.player-panel > .panel-link { background: var(--paper); }
 .panel-link { display: block; color: var(--ink); font-weight: 800; text-decoration: none; padding: .45rem; border: var(--line); }
 .panel-link small { display: block; font-weight: 600; }
-.panel-link[aria-current] { background: var(--violet); }
+.player-panel .panel-link[aria-current] { background: var(--violet); }
 .site-layout > main { grid-area: content; min-width: 0; }
 .duel-in-progress .site-sidebar, .duel-in-progress .player-panel { display: none; }
 .duel-in-progress .site-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "content"; }
+@media (min-width: 851px) {
+  .site-layout { column-gap: 0; align-items: stretch; padding-block: 0; }
+  .site-sidebar { border-right: 2px solid var(--red); padding: 1rem 1rem 0 0; }
+  .site-layout > main { padding: 1rem; }
+  .site-layout > .player-panel { border-left: 2px solid var(--red); padding: 1rem 0 0 1rem; align-content: start; }
+  .duel-in-progress .site-layout > main { padding-inline: 0; }
+}
 @media (max-width: 850px) {
   .site-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "menu" "player" "content"; }
   .site-sidebar nav { grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); }
   .nav-guide { margin-top: 0; }
   .player-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .player-account { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 nav a, button { font: inherit; font-weight: 800; color: inherit; background: var(--paper); border: var(--line); padding: .55rem; text-align: center; text-decoration: none; cursor: pointer; }
 nav a { text-transform: uppercase; }
@@ -109,7 +120,7 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 }
 
 .battle-board {
-  --battle-card-width: clamp(3.25rem, 8vw, 6rem);
+  --battle-card-width: clamp(3.25rem, min(8vw, 12dvh), 7rem);
   display: grid;
   border: var(--line);
   background: radial-gradient(ellipse at center, #522a73, var(--ink) 75%);
@@ -150,3 +161,41 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
   margin: 0;
 }
 .battle-hand button[data-duel-action] { padding: .2rem; font-size: .7rem; }
+
+.battle-screen { display: grid; gap: .55rem; }
+.battle-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: .3rem 1rem; }
+.battle-heading h1 { margin: 0; font-size: clamp(1.15rem, 2vw, 1.55rem); }
+.battle-heading p { margin: 0; }
+.battle-heading a { margin-inline-start: auto; }
+.battle-side:first-child .battle-zones > .battle-slot:nth-child(2),
+.battle-side:last-child .battle-zones > .battle-slot:nth-child(3) { margin-top: .55rem; }
+.battle-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 28%);
+  gap: .8rem;
+  align-items: start;
+  padding: .5rem .65rem;
+  border: var(--line);
+  background: var(--paper);
+}
+.battle-console .battle-hand { margin: 0; }
+.battle-console .battle-hand ul { grid-template-columns: repeat(6, minmax(0, 5rem)); }
+.battle-controls .actions { justify-content: flex-start; gap: .35rem; }
+.battle-controls button { padding: .3rem .5rem; }
+.battle-controls [role="status"]:empty { margin: 0; }
+@media (max-width: 700px) {
+  .battle-console { grid-template-columns: minmax(0, 1fr); }
+  .battle-console .battle-hand ul { grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr)); }
+}
+
+.battle-stats { display: grid; gap: .12rem; line-height: 1.2; }
+.battle-stats meter { display: block; width: 100%; height: .45rem; accent-color: #6adc9f; }
+.battle-lives { display: inline-flex; gap: .24rem; margin-inline-start: .35rem; vertical-align: middle; }
+.battle-life { width: .65rem; height: .65rem; border: 1px solid #f5acd2; border-radius: 50%; }
+.battle-life.is-live { background: #f5acd2; }
+
+.battle-controls button[data-duel-action="attack"] small { display: block; font-weight: 600; }
+.battle-controls button[data-duel-action="attack"]:disabled { background: #eee7f4; opacity: 1; }
+.battle-controls button[data-duel-action="end"] { background: var(--ink); color: var(--paper); }
+
+.battle-hand-empty { list-style: none; background: #f5eefb; border-color: #846d97; }
