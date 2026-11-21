@@ -140,6 +140,124 @@ function updateDeckStatus(form) {
   form.querySelector('#mazo-estado').textContent = `${check.total}/${trialDeckSize} cartas · ${check.errors.join(' ') || 'Mazo válido.'}`;
 }
 
+let preparedTrialOpening = null;
+let trialDuel = null;
+
+function renderTrialDuelCard(id) {
+  const card = seasonCardsById.get(id);
+  const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+  return `<button type="button" data-card="${card.id}">${name}</button>`;
+}
+
+function renderStartedTrialDuel(duel) {
+  const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) => {
+    const { active, support } = side;
+    return `<section><h2>${label}</h2><p>${side.lives} vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
+      <p>Activa: ${active ? `${renderTrialDuelCard(active.id)} · ${active.hp} PV · ${active.energy} energía${active.exhausted ? ' · Agotada' : ''}` : 'Vacía'}</p>
+      <p>Apoyo: ${support ? `${renderTrialDuelCard(support.id)} · ${support.hp} PV · ${support.energy} energía` : 'Vacío'}</p>
+      <p>Eliminadas: ${side.discarded.map(renderTrialDuelCard).join(' ') || '0'}</p></section>`;
+  }).join('');
+  const ownTurn = duel.turn === 'player' && !duel.result;
+  const hand = duel.player.hand.map((creature, index) => {
+    const buttons = ownTurn ? ['active', 'support'].filter(slot => canPlaceTrialCreature(duel, slot, index)).map(slot => {
+      const label = slot === 'active' ? 'Activa' : 'Apoyo';
+      const action = duel.player[slot] ? 'Relevar' : slot === 'active' || duel.player.supportLost ? 'Reponer' : 'Colocar';
+      return `<button type="button" data-duel-action="place" data-duel-slot="${slot}" data-duel-replace="${index}">${action} ${label}</button>`;
+    }).join(' ') : '';
+    return `${renderTrialDuelCard(creature.id)} · ${creature.hp} PV · ${creature.energy} energía ${buttons}`;
+  }).join(' ');
+  let controls = '';
+  if (ownTurn && duel.phase === 'draw') {
+    controls = '<button data-duel-action="draw">Robar</button> <button data-duel-action="skip">Omitir robo</button>';
+  } else if (ownTurn && duel.phase === 'replacement') {
+    controls = '<button data-duel-action="energy">Ir a acciones</button>';
+  } else if (ownTurn && duel.phase === 'actions') {
+    const active = duel.player.active;
+    const attacks = trialActiveAttacks(active);
+    const skill = trialSupportSkill(duel.player);
+    const support = duel.player.support;
+    const healing = support && seasonCardsById.get(support.id).number === '015';
+    const targets = healing ? ['active', 'support'].filter(slot => {
+      const creature = duel.player[slot];
+      return creature && creature.hp < seasonCardsById.get(creature.id).hp;
+    }) : ['active'];
+    const supportControls = skill ? targets.map(slot =>
+      `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
+        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
+    ).join(' ') : '';
+    const attackControls = attacks.map((attack, index) =>
+      `<button data-duel-action="attack" data-duel-attack="${index}" ${active.acted || active.exhausted || active.energy < attack.cost ? 'disabled' : ''}>
+        ${attack.ability} · ${attack.cost} energía · ${duel.rival.active || duel.rival.support ? `${attack.damage + duel.player.bonus} daño` : '1 vida'}${attack.exhausts ? ' · Agota' : ''}</button>`
+    ).join(' ');
+    controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+  }
+  const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
+  return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
+    <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
+    <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
+    <div class="products">${sides}</div>
+    <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>
+    <div class="actions">${controls}</div>
+    <p role="status">${duel.message}</p>
+    <p><a href="#duelo/preparar">Preparar otra partida →</a></p>`;
+}
+
+function renderTrialDuel(view) {
+  const heading = '<h1>Duelo de prueba</h1>';
+  const rules = '<p><a href="#ayuda/reglas">Consultar reglas del duelo →</a></p>';
+  if (view === 'partida' && trialDuel) return renderStartedTrialDuel(trialDuel);
+  if (view !== 'preparar') {
+    return heading + '<p><a class="cta" href="#duelo/preparar">Elegir mazo →</a></p>' + rules;
+  }
+
+  let selection;
+  let check;
+  try {
+    selection = readTrialDeck();
+    check = validateTrialDeck(selection, readTrialInventory().copies);
+  } catch {
+    return heading + '<p>No se pudo leer el mazo o el inventario de este navegador.</p>' + rules;
+  }
+
+  const edit = '<p><a href="#perfil/mazo">Ir a Mi mazo de prueba →</a></p>';
+  if (check.errors.length) return heading + '<p>Guarda un mazo válido para preparar la partida.</p>' + edit + rules;
+
+  return heading + `<label for="mazo-duelo">Mazo</label>
+    <select id="mazo-duelo"><option>Mi mazo de prueba · ${check.total} cartas</option></select>
+    <p>El rival de prueba usa la misma composición, barajada por separado.</p>
+    <button id="preparar-duelo" type="button">Preparar partida</button>
+    <div id="apertura-duelo" aria-live="polite"></div>` + edit + rules;
+}
+
+function showTrialOpening() {
+  const result = main.querySelector('#apertura-duelo');
+  preparedTrialOpening = null;
+  try {
+    const selection = readTrialDeck();
+    const check = validateTrialDeck(selection, readTrialInventory().copies);
+    if (check.errors.length) {
+      result.textContent = check.errors.join(' ');
+      return;
+    }
+    const opening = prepareTrialOpening(selection);
+    preparedTrialOpening = opening;
+    const sides = [['Tú', opening.player], ['Rival', opening.rival]].map(([label, side]) => {
+      const card = seasonCardsById.get(side.activeId);
+      const name = card.variant ? `${card.species} · ${card.variant}` : card.species;
+      return `<section><h3>${label}</h3><p>3 vidas · Mazo ${side.deck.length} · Mano 0</p>
+        <p>Activa: <button type="button" data-card="${card.id}">${name}</button></p>
+        <p>Apoyo vacío · Eliminadas 0</p></section>`;
+    }).join('');
+    result.innerHTML = `<h2>Apertura preparada</h2>
+      <p>${opening.starter === 'player' ? 'Empiezas tú.' : 'Empieza el rival.'}
+        ${opening.player.draws === opening.rival.draws ? 'Desempate al azar.' : ''}</p>
+      <div class="products">${sides}</div>
+      <p><button id="comenzar-duelo" type="button">Comenzar duelo</button></p>`;
+  } catch {
+    result.textContent = 'No se pudo preparar la apertura.';
+  }
+}
+
 function renderAlbums(view) {
   const album = { ...albums[selectedAlbum], copies: trialInventoryForDisplay()?.copies ?? {} };
   if (view !== 'abierto') {
@@ -179,7 +297,8 @@ function render() {
       main.innerHTML = renderAlbums(view);
       break;
     case 'duelo':
-      main.innerHTML = '<h1>Duelo</h1><p>El tablero se está probando en el prototipo local de ACCRETION. Esta sección se abrirá cuando el duelo se integre en la web.</p><p><a href="#ayuda/reglas">Consultar reglas del duelo →</a></p><a href="#inicio">Volver a Inicio</a>';
+      main.innerHTML = renderTrialDuel(view);
+      if (view === 'partida' && trialDuel) main.querySelector('h1').focus();
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
@@ -215,7 +334,29 @@ function render() {
 main.addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  if (button.dataset.card) {
+  if (button.id === 'preparar-duelo') {
+    showTrialOpening();
+  } else if (button.id === 'comenzar-duelo' && preparedTrialOpening) {
+    trialDuel = startTrialDuel(preparedTrialOpening);
+    preparedTrialOpening = null;
+    playTrialRival(trialDuel);
+    button.disabled = true;
+    location.hash = 'duelo/partida';
+  } else if (trialDuel?.turn === 'player' && (button.dataset.duelAction || button.dataset.duelReplace !== undefined)) {
+    switch (button.dataset.duelAction) {
+      case 'draw': resolveTrialDraw(trialDuel, true); break;
+      case 'skip': resolveTrialDraw(trialDuel, false); break;
+      case 'energy': advanceTrialEnergy(trialDuel); break;
+      case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
+      case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
+      case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack)); break;
+      case 'end':
+        endTrialTurn(trialDuel);
+        playTrialRival(trialDuel);
+        break;
+    }
+    render();
+  } else if (button.dataset.card) {
     const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
     const dialog = document.querySelector('#detalle-carta');
     const image = document.querySelector('#detalle-imagen');
