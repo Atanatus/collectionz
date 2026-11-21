@@ -273,12 +273,12 @@ function renderStartedTrialDuel(duel) {
       return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
         ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
     }).join(' ');
-    const guardControls = ['active', 'support'].map(slot => {
-      const guard = trialGuardSkill(duel.player, slot);
-      return guard ? `<button data-duel-action="guard" data-duel-slot="${slot}" ${canUseTrialGuard(duel, slot) ? '' : 'disabled'}>
-        ${guard.ability} · ${guard.cost} energía · Bloquea hasta ${guard.reduction}</button>` : '';
+    const defenseControls = ['active', 'support'].map(slot => {
+      const defense = trialDefenseSkill(duel.player, slot);
+      return defense ? `<button data-duel-action="guard" data-duel-slot="${slot}" ${canUseTrialDefense(duel, slot) ? '' : 'disabled'}>
+        ${defense.ability} · ${defense.cost} energía · ${defense.healing ? `Cura hasta ${defense.healing} PV` : `Bloquea hasta ${defense.reduction}`}</button>` : '';
     }).join(' ');
-    controls = `${supportControls} ${guardControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+    controls = `${supportControls} ${defenseControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
   const hybridMove = ownTurn ? trialHybridMove(duel) : null;
   if (hybridMove) {
@@ -464,7 +464,7 @@ main.addEventListener('click', event => {
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'hybrid': moveTrialHybrid(trialDuel); break;
-      case 'guard': useTrialGuard(trialDuel, button.dataset.duelSlot); break;
+      case 'guard': useTrialDefense(trialDuel, button.dataset.duelSlot); break;
       case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':

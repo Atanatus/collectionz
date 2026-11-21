@@ -129,31 +129,37 @@ function moveTrialHybrid(duel) {
   return true;
 }
 
-function trialGuardSkill(side, slot) {
+function trialDefenseSkill(side, slot) {
   const creature = side[slot];
   if (!creature) return null;
   const card = seasonCardsById.get(creature.id);
+  if (slot === 'active' && card.number === '023') return { ...card.skills[1], healing: 125 };
   if (slot === 'active' && card.number === '003') return { ...card.skills[1], reduction: 150 };
   if (slot === 'support' && card.number === '010') return { ...card.skills[0], reduction: 125 };
   return null;
 }
 
-function canUseTrialGuard(duel, slot) {
+function canUseTrialDefense(duel, slot) {
   const side = duel[duel.turn];
-  const skill = trialGuardSkill(side, slot);
+  const skill = trialDefenseSkill(side, slot);
   const creature = side[slot];
   return Boolean(!duel.result && duel.phase === 'actions' && skill &&
-    !creature.acted && !creature.exhausted && !creature.guard && creature.energy >= skill.cost);
+    !creature.acted && !creature.exhausted && creature.energy >= skill.cost &&
+    (skill.healing ? creature.hp < seasonCardsById.get(creature.id).hp : !creature.guard));
 }
 
-function useTrialGuard(duel, slot) {
-  if (!canUseTrialGuard(duel, slot)) return false;
+function useTrialDefense(duel, slot) {
+  if (!canUseTrialDefense(duel, slot)) return false;
   const side = duel[duel.turn];
   const creature = side[slot];
-  const skill = trialGuardSkill(side, slot);
+  const skill = trialDefenseSkill(side, slot);
   creature.energy -= skill.cost;
   creature.acted = true;
-  creature.guard = skill.reduction;
+  if (skill.healing) {
+    creature.hp = Math.min(seasonCardsById.get(creature.id).hp, creature.hp + skill.healing);
+  } else {
+    creature.guard = skill.reduction;
+  }
   duel.message = skill.ability;
   return true;
 }
@@ -341,7 +347,7 @@ function playTrialRival(duel) {
   } else if (!useTrialSupport(duel)) {
     useTrialSupport(duel, 'support');
   }
-  useTrialGuard(duel, 'support');
-  if (!attackTrialDuel(duel, 1) && !useTrialGuard(duel, 'active')) attackTrialDuel(duel);
+  useTrialDefense(duel, 'support');
+  if (!attackTrialDuel(duel, 1) && !useTrialDefense(duel, 'active')) attackTrialDuel(duel);
   endTrialTurn(duel);
 }
