@@ -361,7 +361,6 @@ function render() {
       break;
     case 'duelo':
       main.innerHTML = renderTrialDuel(view);
-      if (view === 'partida' && trialDuel) main.querySelector('h1').focus();
       break;
     case 'tienda':
       main.innerHTML = '<h1>Tienda</h1><div class="products" aria-label="Formatos de sobres" tabindex="0">' +
@@ -419,7 +418,18 @@ main.addEventListener('click', event => {
         playTrialRival(trialDuel);
         break;
     }
+    const action = button.dataset.duelAction;
     render();
+    const enabledActions = [...main.querySelectorAll('button[data-duel-action]:not(:disabled)')];
+    const next = enabledActions.find(control => control.dataset.duelAction === action &&
+      control.dataset.duelAttack === button.dataset.duelAttack &&
+      control.dataset.duelTarget === button.dataset.duelTarget &&
+      control.dataset.duelSlot === button.dataset.duelSlot &&
+      control.dataset.duelReplace === button.dataset.duelReplace)
+      ?? enabledActions.find(control => !control.closest('.battle-hand'))
+      ?? enabledActions[0]
+      ?? main.querySelector('h1');
+    next?.focus({ preventScroll: true });
   } else if (button.dataset.card) {
     const card = seasonOneCards.find(entry => entry.id === button.dataset.card);
     const dialog = document.querySelector('#detalle-carta');
