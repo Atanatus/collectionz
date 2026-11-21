@@ -120,7 +120,7 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
 }
 
 .battle-board {
-  --battle-card-width: clamp(3.25rem, 8vw, 6rem);
+  --battle-card-width: clamp(3.25rem, min(8vw, 12dvh), 7rem);
   display: grid;
   border: var(--line);
   background: radial-gradient(ellipse at center, #522a73, var(--ink) 75%);
@@ -161,3 +161,35 @@ button.card { display: grid; place-content: center; gap: .25rem; min-width: 0; o
   margin: 0;
 }
 .battle-hand button[data-duel-action] { padding: .2rem; font-size: .7rem; }
+
+.battle-screen { display: grid; gap: .55rem; }
+.battle-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: .3rem 1rem; }
+.battle-heading h1 { margin: 0; font-size: clamp(1.15rem, 2vw, 1.55rem); }
+.battle-heading p { margin: 0; }
+.battle-heading a { margin-inline-start: auto; }
+.battle-side:first-child .battle-zones > .battle-slot:nth-child(2),
+.battle-side:last-child .battle-zones > .battle-slot:nth-child(3) { margin-top: .55rem; }
+.battle-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 28%);
+  gap: .8rem;
+  align-items: start;
+  padding: .5rem .65rem;
+  border: var(--line);
+  background: var(--paper);
+}
+.battle-console .battle-hand { margin: 0; }
+.battle-console .battle-hand ul { grid-template-columns: repeat(6, minmax(0, 5rem)); }
+.battle-controls .actions { justify-content: flex-start; gap: .35rem; }
+.battle-controls button { padding: .3rem .5rem; }
+.battle-controls [role="status"]:empty { margin: 0; }
+@media (max-width: 700px) {
+  .battle-console { grid-template-columns: minmax(0, 1fr); }
+  .battle-console .battle-hand ul { grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr)); }
+}
+
+.battle-stats { display: grid; gap: .12rem; line-height: 1.2; }
+.battle-stats meter { display: block; width: 100%; height: .45rem; accent-color: #6adc9f; }
+.battle-lives { display: inline-flex; gap: .24rem; margin-inline-start: .35rem; vertical-align: middle; }
+.battle-life { width: .65rem; height: .65rem; border: 1px solid #f5acd2; border-radius: 50%; }
+.battle-life.is-live { background: #f5acd2; }
