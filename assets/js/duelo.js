@@ -28,7 +28,7 @@ function prepareTrialOpening(selection, random = Math.random) {
 }
 
 function createTrialActive(id) {
-  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, movementLocked: false, guard: 0, suspension: false, deferredDamage: 0, hitLastTurn: false };
+  return { id, hp: seasonCardsById.get(id).hp, energy: 0, acted: false, replaced: false, exhausted: 0, movementLocked: false, guard: 0, suspension: false, deferredDamage: 0, landingEcho: 0, hitLastTurn: false };
 }
 
 function startTrialDuel(opening) {
@@ -98,7 +98,10 @@ function placeTrialCreature(duel, slot, index) {
   const outgoing = side[slot];
   const free = !outgoing && (slot === 'active' || side.supportLost);
   const [incoming] = side.hand.splice(index, 1);
-  if (outgoing) side.hand.push(outgoing);
+  if (outgoing) {
+    outgoing.landingEcho = 0;
+    side.hand.push(outgoing);
+  }
   side[slot] = incoming;
   side.interposition = false;
   incoming.acted = !free;
@@ -316,6 +319,7 @@ function trialActiveAttackOptions(active) {
   if (card.number === '007') return [basic, { ...special, damage: 225, splashDamage: 125 }];
   if (['017', '020'].includes(card.number)) return [basic, { ...special, exhausts: true }];
   if (card.number === '008') return [basic, { ...special, locksActive: true }];
+  if (card.number === '013') return [basic, { ...special, damage: 375, delayed: true }];
   if (card.number === '016') return [basic, { ...special, ignoresReduction: 100 }];
   if (card.number !== '001') return [basic];
   return [basic, { ...special,
@@ -330,6 +334,7 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   if (duel.result || duel.phase !== 'actions' || !skill || active.acted || active.exhausted || active.energy < skill.cost) return false;
   const opponent = duel.turn === 'player' ? 'rival' : 'player';
   const target = duel[opponent];
+  if (skill.delayed && (!target.active || target.active.landingEcho)) return false;
   const bothOccupied = Boolean(target.active && target.support);
   if (aimAtSupport && (!bothOccupied || !skill.supportTargetDamage)) return false;
   const slot = target.active && !aimAtSupport ? 'active' : 'support';
@@ -342,6 +347,11 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   active.energy -= skill.cost;
   active.acted = true;
   if (skill.exhausts) active.exhausted = 2;
+  if (skill.delayed) {
+    creature.landingEcho = damage;
+    duel.message = `${skill.ability} · ${damage} de daño al final del turno rival`;
+    return true;
+  }
   duel.message = skill.ability + (creature ? ` · ${damage} de daño` : ' · Ataque directo');
   if (splash) duel.message += ` · ${splash} al Apoyo`;
   const hits = [[slot, damage]];
@@ -398,21 +408,26 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
 function endTrialTurn(duel) {
   if (duel.result || duel.phase !== 'actions') return false;
   const side = duel[duel.turn];
-  if (side.active?.deferredDamage) {
-    const active = side.active;
-    const damage = active.deferredDamage;
-    active.deferredDamage = 0;
-    active.hp = Math.max(0, active.hp - damage);
-    duel.message = `Caída suspendida · ${damage} de daño aplazado`;
-    if (active.hp === 0) {
-      side.discarded.push(active.id);
-      side.active = null;
-      side.interposition = false;
-      side.lives -= 1;
-      if (side.lives === 0) {
-        duel.result = duel.turn === 'player' ? 'rival' : 'player';
-        return true;
-      }
+  for (const [slot, effect, name] of [
+    ['active', 'deferredDamage', 'Caída suspendida'],
+    ['active', 'landingEcho', 'Eco de aterrizaje'],
+    ['support', 'landingEcho', 'Eco de aterrizaje']
+  ]) {
+    const creature = side[slot];
+    const damage = creature?.[effect];
+    if (!damage) continue;
+    creature[effect] = 0;
+    creature.hp = Math.max(0, creature.hp - damage);
+    duel.message = `${name} · ${damage} de daño`;
+    if (creature.hp > 0) continue;
+    side.discarded.push(creature.id);
+    side[slot] = null;
+    side.interposition = false;
+    if (slot === 'support') side.supportLost = true;
+    side.lives -= 1;
+    if (side.lives === 0) {
+      duel.result = duel.turn === 'player' ? 'rival' : 'player';
+      return true;
     }
   }
   side.bonus = 0;

@@ -216,6 +216,7 @@ function renderBattleCard(creature) {
       <span>${creature.hp}/${card.hp} PV · ${creature.energy} E</span>
       ${creature.exhausted ? '<span>Agotada</span>' : ''}
       ${creature.suspension ? '<span>Caída suspendida</span>' : ''}
+      ${creature.landingEcho ? `<span>Eco pendiente · ${creature.landingEcho}</span>` : ''}
       ${creature.deferredDamage ? `<span>${creature.deferredDamage} de daño pendiente</span>` : ''}
       ${creature.guard ? `<span>Protección · ${creature.guard}</span>` : ''}
       ${creature.movementLocked ? '<span>Movimiento bloqueado</span>' : ''}
@@ -287,6 +288,8 @@ function renderStartedTrialDuel(duel) {
     const bothOccupied = Boolean(enemyActive && enemySupport);
     const attackControls = attacks.map((attack, index) => {
       const unavailable = active.acted ? 'Ya actuó' : active.exhausted ? 'Agotada'
+        : attack.delayed && !enemyActive ? 'Requiere Activa rival'
+        : attack.delayed && enemyActive.landingEcho ? 'Eco pendiente'
         : active.energy < attack.cost ? `Falta energía · ${active.energy}/${attack.cost}` : '';
       const disabled = unavailable ? 'disabled' : '';
       const reason = unavailable ? `<small>${unavailable}</small>` : '';
@@ -297,7 +300,7 @@ function renderStartedTrialDuel(duel) {
         ? `<button data-duel-action="attack" data-duel-attack="${index}" data-duel-target="support" ${disabled}>
           ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño${reason}</button>` : '';
       return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
-        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
+        ${attack.ability} · ${attack.cost} energía · ${attack.delayed ? `${attack.damage + bonus} de daño diferido` : damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
     }).join(' ');
     const defenseControls = ['active', 'support'].map(slot => {
       const defense = trialDefenseSkill(duel.player, slot);
