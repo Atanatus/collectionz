@@ -213,14 +213,23 @@ function renderStartedTrialDuel(duel) {
     controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
   }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
-  return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-    <p>Prueba local con ataques básicos, ataques especiales de Mueca y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
-    <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
+  return `<div class="battle-screen">
+    <div class="battle-heading">
+      <h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
+      ${duel.result ? '' : `<p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>`}
+      <a href="#duelo/preparar">${duel.result ? 'Preparar otra partida' : 'Volver a preparar'}</a>
+    </div>
     <div class="battle-board">${sides}</div>
-    <section class="battle-hand"><h2>Tu mano</h2>${hand ? `<ul>${hand}</ul>` : '<p>Vacía</p>'}</section>
-    <div class="actions">${controls}</div>
-    <p role="status">${duel.message}</p>
-    <p><a href="#duelo/preparar">Preparar otra partida →</a></p>`;
+    <div class="battle-console">
+      <section class="battle-hand"><h2>Tu mano · ${duel.player.hand.length}/6</h2>
+        ${hand ? `<ul>${hand}</ul>` : '<p>Vacía</p>'}
+      </section>
+      <div class="battle-controls">
+        ${controls ? `<div class="actions">${controls}</div>` : ''}
+        <p role="status">${duel.message}</p>
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderTrialDuel(view) {
