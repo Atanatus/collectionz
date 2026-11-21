@@ -155,7 +155,13 @@ function renderBattleCard(creature) {
   return `<button type="button" class="battle-card" data-card="${card.id}" aria-label="Ver carta de ${name}">
       <img src="${cardImagePath(card)}" alt="" width="1000" height="1400">
     </button>
-    <span class="battle-stats">${creature.hp} PV · ${creature.energy} E${creature.exhausted ? ' · Agotada' : ''}</span>`;
+    <span class="battle-stats">
+      <strong>${name}</strong>
+      <meter min="0" max="${card.hp}" value="${creature.hp}" aria-label="Puntos de vida de ${name}"></meter>
+      <span>${creature.hp}/${card.hp} PV · ${creature.energy} E</span>
+      ${creature.exhausted ? '<span>Agotada</span>' : ''}
+      ${creature.movementLocked ? '<span>Movimiento bloqueado</span>' : ''}
+    </span>`;
 }
 
 function renderStartedTrialDuel(duel) {
@@ -167,8 +173,12 @@ function renderStartedTrialDuel(duel) {
     const deck = side.deck.length
       ? '<img src="assets/cartas/temporada-1/reverso.png" alt="" width="1000" height="1400">'
       : '<div class="battle-empty">Vacío</div>';
+    const lives = Array.from({ length: 3 }, (_, index) =>
+      `<span class="battle-life${index < side.lives ? ' is-live' : ''}"></span>`
+    ).join('');
     return `<section class="battle-side" aria-label="${label}">
-      <h2>${label} <small>${side.lives} vidas · Mano ${side.hand.length}</small></h2>
+      <h2>${label} <span class="battle-lives" role="img" aria-label="${side.lives} de 3 vidas">${lives}</span>
+        <small>Mano ${side.hand.length}</small></h2>
       <div class="battle-zones">
         <div class="battle-slot"><strong>Mazo · ${side.deck.length}</strong>${deck}</div>
         ${slots}
