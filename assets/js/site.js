@@ -151,15 +151,18 @@ function renderTrialDuelCard(id) {
 
 function renderStartedTrialDuel(duel) {
   const sides = [['Rival', duel.rival], ['Tú', duel.player]].map(([label, side]) => {
-    const active = side.active;
+    const { active, support } = side;
     return `<section><h2>${label}</h2><p>${side.lives} vidas · Mazo ${side.deck.length} · Mano ${side.hand.length}</p>
       <p>Activa: ${active ? `${renderTrialDuelCard(active.id)} · ${active.hp} PV · ${active.energy} energía` : 'Vacía'}</p>
+      <p>Apoyo: ${support ? `${renderTrialDuelCard(support.id)} · ${support.hp} PV · ${support.energy} energía` : 'Vacío'}</p>
       <p>Eliminadas: ${side.discarded.map(renderTrialDuelCard).join(' ') || '0'}</p></section>`;
   }).join('');
   const ownTurn = duel.turn === 'player' && !duel.result;
   const hand = duel.player.hand.map((id, index) => {
     const replacement = ownTurn && duel.phase === 'replacement' && canReplaceTrialActive(duel.player, index);
-    return `${renderTrialDuelCard(id)} ${replacement ? `<button type="button" data-duel-replace="${index}">Reponer Activa</button>` : ''}`;
+    const support = ownTurn && duel.phase === 'replacement' && canPlaceTrialSupport(duel.player, index);
+    const supportButton = support ? `<button type="button" data-duel-action="place-support" data-duel-replace="${index}">${duel.player.supportLost ? 'Reponer' : 'Colocar'} Apoyo</button>` : '';
+    return `${renderTrialDuelCard(id)} ${replacement ? `<button type="button" data-duel-replace="${index}">Reponer Activa</button>` : ''} ${supportButton}`;
   }).join(' ');
   let controls = '';
   if (ownTurn && duel.phase === 'draw') {
@@ -169,13 +172,24 @@ function renderStartedTrialDuel(duel) {
   } else if (ownTurn && duel.phase === 'actions') {
     const active = duel.player.active;
     const attack = trialBasicAttack(active);
-    controls = `${attack ? `<button data-duel-action="attack" ${active.acted || active.energy < attack.cost ? 'disabled' : ''}>
-      ${attack.ability} · ${attack.cost} energía · ${attack.damage} daño</button>` : ''}
+    const skill = trialSupportSkill(duel.player);
+    const support = duel.player.support;
+    const healing = support && seasonCardsById.get(support.id).number === '015';
+    const targets = healing ? ['active', 'support'].filter(slot => {
+      const creature = duel.player[slot];
+      return creature && creature.hp < seasonCardsById.get(creature.id).hp;
+    }) : ['active'];
+    const supportControls = skill ? targets.map(slot =>
+      `<button data-duel-action="support" data-duel-target="${slot}" ${skill.enabled ? '' : 'disabled'}>
+        ${skill.ability}${healing ? (slot === 'active' ? ' · Curar Activa' : ' · Curar Hendral') : ''} · ${skill.cost} energía</button>`
+    ).join(' ') : '';
+    controls = `${supportControls} ${attack ? `<button data-duel-action="attack" ${active.acted || active.energy < attack.cost ? 'disabled' : ''}>
+      ${attack.ability} · ${attack.cost} energía · ${attack.damage + (duel.rival.active || duel.rival.support ? duel.player.bonus : 0)} daño</button>` : ''}
       <button data-duel-action="end">Terminar turno</button>`;
   }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-    <p>Prueba local con ataques básicos.</p>
+    <p>Prueba local con ataques básicos y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
     <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
     <div class="products">${sides}</div>
     <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>
@@ -329,6 +343,8 @@ main.addEventListener('click', event => {
       case 'draw': resolveTrialDraw(trialDuel, true); break;
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
+      case 'place-support': placeTrialSupport(trialDuel, Number(button.dataset.duelReplace)); break;
+      case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel); break;
       case 'end':
         endTrialTurn(trialDuel);
