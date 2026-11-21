@@ -202,7 +202,7 @@ function renderStartedTrialDuel(duel) {
   }
   const status = { player: 'Victoria', rival: 'Derrota', draw: 'Empate por repetición' };
   return `<h1 tabindex="-1">${duel.result ? status[duel.result] : 'Duelo en curso'}</h1>
-    <p>Prueba local con ataques básicos, ataques especiales de Mueca, Vidraco y Trémora y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
+    <p>Prueba local con ataques básicos, ataques especiales de Mueca, Vidraco, Trémora, Fálcoro y Caldrón y habilidades de Súrquilo, Hendral y Cérulo en Apoyo.</p>
     <p>Turno ${duel.round} · ${duel.turn === 'player' ? 'Tu turno' : 'Turno del rival'}</p>
     <div class="products">${sides}</div>
     <section><h2>Tu mano</h2><p>${hand || 'Vacía'}</p></section>

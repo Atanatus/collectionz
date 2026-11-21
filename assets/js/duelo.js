@@ -171,6 +171,7 @@ function trialActiveAttacks(active) {
   const special = card.skills[1];
   if (card.number === '006') return [basic, { ...special, damage: 350, supportTargetDamage: 250 }];
   if (card.number === '007') return [basic, { ...special, damage: 225, splashDamage: 125 }];
+  if (['017', '020'].includes(card.number)) return [basic, { ...special, exhausts: true }];
   if (card.number !== '001') return [basic];
   return [basic, { ...special,
     damage: special.damage ?? (active.hitLastTurn ? (card.variant ? 300 : 250) : 180),
