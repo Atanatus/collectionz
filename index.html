@@ -8,10 +8,24 @@
 </head>
 <body>
 <header><a class="brand" href="#inicio">ACCRETION</a></header>
-<nav aria-label="Secciones">
-  <a href="#inicio">Inicio</a><a href="#albumes">Álbumes</a><a href="#tienda">Tienda</a><a href="#mercado">Mercado</a><a href="#perfil">Perfil</a>
-</nav>
-<main id="contenido"></main>
+<div class="site-layout">
+  <div class="site-sidebar">
+    <nav aria-label="Secciones">
+      <a href="#inicio">Inicio</a>
+      <a href="#duelo">Duelos</a>
+      <a href="#albumes">Álbumes</a>
+      <a href="#tienda">Tienda</a>
+      <a href="#mercado">Mercado</a>
+      <a href="#perfil/mazo">Mazos</a>
+      <a class="nav-guide" href="#ayuda">Guía</a>
+    </nav>
+  </div>
+  <aside class="player-panel" aria-label="Perfil y sobres">
+    <a class="panel-link" href="#perfil">Perfil <small>Jugador local</small></a>
+    <a class="panel-link" href="#perfil/mis-sobres">Mis sobres <small>Sobres de prueba</small></a>
+  </aside>
+  <main id="contenido"></main>
+</div>
 <dialog id="detalle-carta" aria-labelledby="detalle-nombre">
   <h2 id="detalle-nombre"></h2>
   <p id="detalle-datos"></p>
