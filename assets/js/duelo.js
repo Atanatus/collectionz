@@ -33,7 +33,7 @@ function createTrialActive(id) {
 
 function startTrialDuel(opening) {
   function createSide(side) {
-    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, discarded: [], lives: 3, germinationUsed: false };
+    return { active: createTrialActive(side.activeId), deck: [...side.deck], hand: [], support: null, supportLost: false, placed: { active: false, support: false }, bonus: 0, attackTax: 0, interposition: false, discarded: [], lives: 3, germinationUsed: false };
   }
   const duel = {
     turn: opening.starter, round: 1, result: null, seen: new Map(), message: '',
@@ -100,6 +100,7 @@ function placeTrialCreature(duel, slot, index) {
   const [incoming] = side.hand.splice(index, 1);
   if (outgoing) side.hand.push(outgoing);
   side[slot] = incoming;
+  side.interposition = false;
   incoming.acted = !free;
   incoming.replaced = free && slot === 'active';
   if (!free) side.placed[slot] = true;
@@ -123,6 +124,7 @@ function moveTrialHybrid(duel) {
   const { active, support } = side;
   if (active) active.acted = true;
   side.active = support;
+  side.interposition = false;
   side.support = active;
   if (move === 'promote') side.supportLost = false;
   duel.message = move === 'swap' ? 'Híbridas intercambiadas' : 'Híbrida ascendida a Activa';
@@ -197,8 +199,9 @@ function trialSupportSkill(side) {
   const card = seasonCardsById.get(support.id);
   const skill = card.skills.find(entry => !entry.slot || entry.slot === 'Apoyo');
   const species = card.number;
-  if (!['004', '005', '012', '015', '018', '019', '024'].includes(species)) return null;
+  if (!['004', '005', '012', '015', '018', '019', '022', '024'].includes(species)) return null;
   const enabled = !support.acted && !support.exhausted && support.energy >= skill.cost && (
+    species === '022' ? active && active.hp < seasonCardsById.get(active.id).hp && !side.interposition :
     species === '018' ? side.lives < 3 && !side.germinationUsed :
     species === '024' ? active && active.hp * 2 <= seasonCardsById.get(active.id).hp :
     species === '005' ? true :
@@ -222,6 +225,8 @@ function useTrialSupport(duel, target = 'active') {
     const maxHp = seasonCardsById.get(creature.id).hp;
     if (creature.hp >= maxHp) return false;
     creature.hp = Math.min(maxHp, creature.hp + 150);
+  } else if (card.number === '022') {
+    side.interposition = true;
   } else if (card.number === '018') {
     side.lives += 1;
     side.germinationUsed = true;
@@ -308,7 +313,7 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
   if (splash) duel.message += ` · ${splash} al Apoyo`;
   const hits = [[slot, damage]];
   if (splash) hits.push(['support', splash]);
-  let lostLives = creature ? 0 : 1;
+  const damageBySlot = { active: 0, support: 0 };
   for (const [hitSlot, amount] of hits) {
     const hit = target[hitSlot];
     if (!hit) continue;
@@ -317,7 +322,20 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
       hit.guard = 0;
       duel.message += ` · ${blocked} bloqueados en ${hitSlot === 'active' ? 'Activa' : 'Apoyo'}`;
     }
-    const applied = amount - blocked;
+    let applied = amount - blocked;
+    if (hitSlot === 'active' && applied > 0 && target.interposition && target.support) {
+      const redirected = Math.min(125, applied);
+      applied -= redirected;
+      damageBySlot.support += redirected;
+      target.interposition = false;
+      duel.message += ` · ${redirected} desviados a Broquel`;
+    }
+    damageBySlot[hitSlot] += applied;
+  }
+  let lostLives = creature ? 0 : 1;
+  for (const [hitSlot, applied] of Object.entries(damageBySlot)) {
+    if (applied === 0) continue;
+    const hit = target[hitSlot];
     hit.hitLastTurn ||= applied > 0;
     hit.hp = Math.max(0, hit.hp - applied);
     if (hit.hp > 0) {
@@ -329,6 +347,7 @@ function attackTrialDuel(duel, index = 0, aimAtSupport = false) {
     }
     target.discarded.push(hit.id);
     target[hitSlot] = null;
+    target.interposition = false;
     if (hitSlot === 'support') target.supportLost = true;
     lostLives += 1;
   }
@@ -351,6 +370,7 @@ function endTrialTurn(duel) {
   }
   duel.turn = duel.turn === 'player' ? 'rival' : 'player';
   const next = duel[duel.turn];
+  next.interposition = false;
   for (const creature of [next.active, next.support, ...next.hand]) {
     if (creature) creature.guard = 0;
   }
