@@ -452,6 +452,23 @@ function endTrialTurn(duel) {
   return true;
 }
 
+function recoverTrialRivalCreatures(duel) {
+  const side = duel.rival;
+  if (canUseTrialReturn(duel) && side.lives === 3 && !side.active &&
+      !side.hand.some(creature => seasonCardsById.get(creature.id).role !== 'Apoyo')) {
+    const index = side.discarded.findIndex(id => seasonCardsById.get(id).role !== 'Apoyo');
+    if (index >= 0) useTrialReturn(duel, index);
+  }
+
+  const targets = trialVitalSwapTargets(duel);
+  if (!targets.length) return;
+  const best = targets.reduce((current, target) => target.card.hp > current.card.hp ? target : current);
+  const healing = canUseTrialDefense(duel, 'active') ? trialDefenseSkill(side, 'active').healing : 0;
+  if (best.card.hp > Math.min(seasonCardsById.get(side.active.id).hp, side.active.hp + healing)) {
+    useTrialVitalSwap(duel, best.index);
+  }
+}
+
 function playTrialRival(duel) {
   if (duel.result || duel.turn !== 'rival') return;
   resolveTrialDraw(duel, true);
@@ -467,6 +484,7 @@ function playTrialRival(duel) {
     useTrialSupport(duel, 'support');
   }
   useTrialDefense(duel, 'support');
+  recoverTrialRivalCreatures(duel);
   if (!attackTrialDuel(duel, 1) && !useTrialDefense(duel, 'active')) attackTrialDuel(duel);
   endTrialTurn(duel);
 }
