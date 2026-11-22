@@ -485,6 +485,19 @@ function playTrialRival(duel) {
   }
   useTrialDefense(duel, 'support');
   recoverTrialRivalCreatures(duel);
-  if (!attackTrialDuel(duel, 1) && !useTrialDefense(duel, 'active')) attackTrialDuel(duel);
+  if (attackTrialDuel(duel, 1)) {
+    endTrialTurn(duel);
+    return;
+  }
+  const { active } = duel.rival;
+  const defense = trialDefenseSkill(duel.rival, 'active');
+  const missingHp = active ? seasonCardsById.get(active.id).hp - active.hp : 0;
+  // Replís attacks if healing would restore less than its full amount.
+  const preferAttack = defense?.healing && missingHp < defense.healing;
+  if (preferAttack) {
+    if (!attackTrialDuel(duel)) useTrialDefense(duel, 'active');
+  } else if (!useTrialDefense(duel, 'active')) {
+    attackTrialDuel(duel);
+  }
   endTrialTurn(duel);
 }
