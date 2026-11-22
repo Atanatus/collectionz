@@ -143,6 +143,30 @@ function updateDeckStatus(form) {
 let preparedTrialOpening = null;
 let trialDuel = null;
 
+function showDuelWave() {
+  if (!useTrialSupport(trialDuel)) return;
+  const duel = trialDuel;
+  const dialog = document.querySelector('#duel-wave');
+  const cards = duel.player.deck.slice(0, 2).map(id => {
+    const card = seasonCardsById.get(id);
+    const item = document.createElement('li');
+    item.textContent = card.variant ? `${card.species} · ${card.variant}` : card.species;
+    return item;
+  });
+  dialog.querySelector('#duel-wave-cards').replaceChildren(...cards);
+  dialog.returnValue = 'keep';
+  dialog.addEventListener('close', () => {
+    const deck = duel.player.deck;
+    if (dialog.returnValue === 'swap') [deck[0], deck[1]] = [deck[1], deck[0]];
+    if (location.hash === '#duelo/partida' && duel === trialDuel) {
+      render();
+      main.querySelector('[data-duel-action="end"]')?.focus({ preventScroll: true });
+    }
+  }, { once: true });
+  render();
+  dialog.showModal();
+}
+
 function showDuelDiscard(sideKey) {
   if (!trialDuel || !['player', 'rival'].includes(sideKey)) return;
   const discarded = trialDuel[sideKey].discarded;
@@ -191,6 +215,10 @@ function renderBattleCard(creature) {
       <meter min="0" max="${card.hp}" value="${creature.hp}" aria-label="Puntos de vida de ${name}"></meter>
       <span>${creature.hp}/${card.hp} PV · ${creature.energy} E</span>
       ${creature.exhausted ? '<span>Agotada</span>' : ''}
+      ${creature.suspension ? '<span>Caída suspendida</span>' : ''}
+      ${creature.landingEcho ? `<span>Eco pendiente · ${creature.landingEcho}</span>` : ''}
+      ${creature.deferredDamage ? `<span>${creature.deferredDamage} de daño pendiente</span>` : ''}
+      ${creature.guard ? `<span>Protección · ${creature.guard}</span>` : ''}
       ${creature.movementLocked ? '<span>Movimiento bloqueado</span>' : ''}
     </span>`;
 }
@@ -199,7 +227,7 @@ function renderStartedTrialDuel(duel) {
   const sides = [['Rival', 'rival'], ['Tú', 'player']].map(([label, sideKey]) => {
     const side = duel[sideKey];
     const slots = [['Activa', side.active], ['Apoyo', side.support]].map(([name, creature]) =>
-      `<div class="battle-slot"><strong>${name}</strong>
+      `<div class="battle-slot"><strong>${name}${name === 'Activa' && side.attackTax ? ' · +1 al ataque' : ''}</strong>
         ${creature ? renderBattleCard(creature) : '<div class="battle-empty" aria-label="Puesto vacío">Vacío</div>'}</div>`
     ).join('');
     const deck = side.deck.length
@@ -238,7 +266,7 @@ function renderStartedTrialDuel(duel) {
     controls = '<button data-duel-action="energy">Ir a acciones</button>';
   } else if (ownTurn && duel.phase === 'actions') {
     const active = duel.player.active;
-    const attacks = trialActiveAttacks(active);
+    const attacks = trialActiveAttacks(duel.player);
     const skill = trialSupportSkill(duel.player);
     const support = duel.player.support;
     const supportSpecies = support && seasonCardsById.get(support.id).number;
@@ -260,6 +288,8 @@ function renderStartedTrialDuel(duel) {
     const bothOccupied = Boolean(enemyActive && enemySupport);
     const attackControls = attacks.map((attack, index) => {
       const unavailable = active.acted ? 'Ya actuó' : active.exhausted ? 'Agotada'
+        : attack.delayed && !enemyActive ? 'Requiere Activa rival'
+        : attack.delayed && enemyActive.landingEcho ? 'Eco pendiente'
         : active.energy < attack.cost ? `Falta energía · ${active.energy}/${attack.cost}` : '';
       const disabled = unavailable ? 'disabled' : '';
       const reason = unavailable ? `<small>${unavailable}</small>` : '';
@@ -270,9 +300,29 @@ function renderStartedTrialDuel(duel) {
         ? `<button data-duel-action="attack" data-duel-attack="${index}" data-duel-target="support" ${disabled}>
           ${attack.ability} al Apoyo · ${attack.cost} energía · ${attack.supportTargetDamage + bonus} daño${reason}</button>` : '';
       return `<button data-duel-action="attack" data-duel-attack="${index}" ${disabled}>
-        ${attack.ability} · ${attack.cost} energía · ${damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
+        ${attack.ability} · ${attack.cost} energía · ${attack.delayed ? `${attack.damage + bonus} de daño diferido` : damage}${splash}${attack.exhausts ? ' · Agota' : ''}${reason}</button> ${attackSupport}`;
     }).join(' ');
-    controls = `${supportControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+    const defenseControls = ['active', 'support'].map(slot => {
+      const defense = trialDefenseSkill(duel.player, slot);
+      return defense ? `<button data-duel-action="guard" data-duel-slot="${slot}" ${canUseTrialDefense(duel, slot) ? '' : 'disabled'}>
+        ${defense.ability} · ${defense.cost} energía · ${defense.healing ? `Cura hasta ${defense.healing} PV` : `Bloquea hasta ${defense.reduction}${defense.protectsSupport ? ' al Apoyo' : ''}`}</button>` : '';
+    }).join(' ');
+    const swapTargets = trialVitalSwapTargets(duel);
+    const swapControls = swapTargets.length ? `<label>Criatura que vuelve
+      <select id="duel-vital-target">${swapTargets.map(({ card, index }) =>
+        `<option value="${index}">${card.species}${card.variant ? ` · ${card.variant}` : ''}</option>`).join('')}
+      </select></label>
+      <button type="button" data-duel-action="vital-swap">Intercambio vital · 0 energía</button>` : '';
+    controls = `${supportControls} ${defenseControls} ${swapControls} ${attackControls} <button data-duel-action="end">Terminar turno</button>`;
+  }
+  if (ownTurn && canUseTrialReturn(duel)) {
+    const options = duel.player.discarded.map((id, index) => {
+      const card = seasonCardsById.get(id);
+      return `<option value="${index}">${card.species}${card.variant ? ` · ${card.variant}` : ''}</option>`;
+    }).join('');
+    const cost = duel.player.lives === 1 ? '1 vida · Pierdes la partida' : '1 vida';
+    controls = `<label>Recuperar a la mano <select id="duel-return-target">${options}</select></label>
+      <button type="button" data-duel-action="return">Hebra de retorno · ${cost}</button> ${controls}`;
   }
   const hybridMove = ownTurn ? trialHybridMove(duel) : null;
   if (hybridMove) {
@@ -384,6 +434,8 @@ function render() {
     if (resultDialog.open) resultDialog.close();
     const discardDialog = document.querySelector('#duel-discard');
     if (discardDialog.open) discardDialog.close();
+    const waveDialog = document.querySelector('#duel-wave');
+    if (waveDialog.open) waveDialog.close('keep');
   }
   for (const link of document.querySelectorAll('.site-sidebar a, .player-panel a')) {
     if (link.hash === current) link.setAttribute('aria-current', 'page');
@@ -453,12 +505,20 @@ main.addEventListener('click', event => {
     location.hash = 'duelo/partida';
   } else if (trialDuel?.turn === 'player' && (button.dataset.duelAction || button.dataset.duelReplace !== undefined)) {
     switch (button.dataset.duelAction) {
+      case 'return': useTrialReturn(trialDuel, Number(main.querySelector('#duel-return-target')?.value)); break;
       case 'draw': resolveTrialDraw(trialDuel, true); break;
       case 'skip': resolveTrialDraw(trialDuel, false); break;
       case 'energy': advanceTrialEnergy(trialDuel); break;
       case 'place': placeTrialCreature(trialDuel, button.dataset.duelSlot, Number(button.dataset.duelReplace)); break;
       case 'hybrid': moveTrialHybrid(trialDuel); break;
-      case 'support': useTrialSupport(trialDuel, button.dataset.duelTarget); break;
+      case 'vital-swap': useTrialVitalSwap(trialDuel, Number(main.querySelector('#duel-vital-target')?.value)); break;
+      case 'guard': useTrialDefense(trialDuel, button.dataset.duelSlot); break;
+      case 'support':
+        if (trialDuel.player.support?.id === 'accretion-002-base') {
+          showDuelWave();
+          return;
+        }
+        useTrialSupport(trialDuel, button.dataset.duelTarget); break;
       case 'attack': attackTrialDuel(trialDuel, Number(button.dataset.duelAttack), button.dataset.duelTarget === 'support'); break;
       case 'end':
         endTrialTurn(trialDuel);
